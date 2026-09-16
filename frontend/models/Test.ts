@@ -4,6 +4,7 @@ export interface ITestDoc extends Document {
   title: string;
   scheduledStartTime: Date;
   durationMinutes: number;
+  defaultPassword?: string;
   status: "scheduled" | "live" | "ended";
   questions: Types.ObjectId[];
   roomId: string;
@@ -25,6 +26,11 @@ const TestSchema = new Schema<ITestDoc>(
       type: Number,
       required: true,
       min: 1,
+      default: 30,
+    },
+    defaultPassword: {
+      type: String,
+      trim: true,
     },
     status: {
       type: String,

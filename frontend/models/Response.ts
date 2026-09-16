@@ -1,14 +1,53 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
+export interface IExecutionResultSubdoc {
+  testCaseIndex: number;
+  passed: boolean;
+  actualOutput: string;
+  stderr: string;
+  executionTimeMs: number;
+}
+
 export interface IResponseDoc extends Document {
   testId: Types.ObjectId;
   userId: Types.ObjectId;
   questionId: Types.ObjectId;
-  selectedOption: "a" | "b" | "c" | "d";
+  // MCQ fields
+  selectedOption?: "a" | "b" | "c" | "d";
   answeredAt: Date;
   isFinal: boolean;
+  // Coding fields
+  finalCode?: string;
+  executionResults?: IExecutionResultSubdoc[];
+  score?: number;
   createdAt: Date;
 }
+
+const ExecutionResultSchema = new Schema<IExecutionResultSubdoc>(
+  {
+    testCaseIndex: {
+      type: Number,
+      required: true,
+    },
+    passed: {
+      type: Boolean,
+      required: true,
+    },
+    actualOutput: {
+      type: String,
+      default: "",
+    },
+    stderr: {
+      type: String,
+      default: "",
+    },
+    executionTimeMs: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
 
 const ResponseSchema = new Schema<IResponseDoc>(
   {
@@ -16,7 +55,7 @@ const ResponseSchema = new Schema<IResponseDoc>(
       type: Schema.Types.ObjectId,
       ref: "Test",
       required: true,
-      index: true, // Required for admin live aggregation queries
+      index: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
@@ -32,7 +71,6 @@ const ResponseSchema = new Schema<IResponseDoc>(
     selectedOption: {
       type: String,
       enum: ["a", "b", "c", "d"],
-      required: true,
     },
     answeredAt: {
       type: Date,
@@ -42,6 +80,18 @@ const ResponseSchema = new Schema<IResponseDoc>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    // Coding fields
+    finalCode: {
+      type: String,
+    },
+    executionResults: {
+      type: [ExecutionResultSchema],
+      default: [],
+    },
+    score: {
+      type: Number,
+      default: 0,
     },
   },
   {

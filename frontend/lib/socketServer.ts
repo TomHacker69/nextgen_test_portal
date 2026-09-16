@@ -7,17 +7,44 @@ import { checkRateLimit } from "./rateLimiter";
 import { connectDB } from "./db";
 import ResponseModel from "@/models/Response";
 import Test from "@/models/Test";
-import User from "@/models/User";
-import { ClientSubmitAnswerPayload, AdminLiveUpdatePayload, UserCompletedPayload } from "@/types";
+import UserTestAccess from "@/models/UserTestAccess";
+import CodeSnapshot from "@/models/CodeSnapshot";
+import {
+  ClientSubmitAnswerPayload,
+  ClientCodeSnapshotPayload,
+  AdminLiveUpdatePayload,
+  AdminCodeUpdatePayload,
+  UserCompletedPayload,
+} from "@/types";
 
 export interface AuthenticatedSocket extends Socket {
   user?: JWTPayload;
 }
 
 let ioInstance: SocketIOServer | null = null;
+const userSocketMap = new Map<string, string>(); // userId -> socketId
 
 export function getIO(): SocketIOServer | null {
   return ioInstance;
+}
+
+export function disconnectUserSocket(userId: string, reason?: string) {
+  const socketId = userSocketMap.get(userId);
+  if (socketId && ioInstance) {
+    const s = ioInstance.sockets.sockets.get(socketId);
+    if (s) {
+      s.emit("error:blocked", { message: reason || "You have been blocked from this test session." });
+      s.disconnect(true);
+      console.log(`[Socket Server] Force-disconnected blocked user ${userId}`);
+    }
+  }
+}
+
+export function emitToUserSocket(userId: string, event: string, payload: any) {
+  const socketId = userSocketMap.get(userId);
+  if (socketId && ioInstance) {
+    ioInstance.to(socketId).emit(event, payload);
+  }
 }
 
 export async function initSocketServer(server: HttpServer): Promise<SocketIOServer> {
@@ -34,16 +61,13 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
     maxHttpBufferSize: 1e6, // 1 MB
   });
 
-  // Wire up Redis Adapter for multi-instance horizontal scaling
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
     try {
       console.log(`[Socket.IO] Connecting to Redis adapter at ${redisUrl}...`);
       const pubClient = new Redis(redisUrl, {
         maxRetriesPerRequest: null,
-        retryStrategy(times) {
-          return Math.min(times * 100, 3000);
-        },
+        retryStrategy: (t) => Math.min(t * 100, 3000),
       });
       const subClient = pubClient.duplicate();
 
@@ -51,25 +75,38 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
       subClient.on("error", (err) => console.error("[Redis Sub Error]", err.message));
 
       await Promise.all([
-        new Promise<void>((resolve) => pubClient.once("ready", () => resolve())),
-        new Promise<void>((resolve) => subClient.once("ready", () => resolve())),
+        new Promise<void>((res) => pubClient.once("ready", () => res())),
+        new Promise<void>((res) => subClient.once("ready", () => res())),
       ]);
 
       io.adapter(createAdapter(pubClient, subClient));
       console.log("[Socket.IO] Redis adapter initialized successfully across cluster.");
+
+      // Subscribe to sandbox worker results
+      const workerSubscriber = pubClient.duplicate();
+      workerSubscriber.subscribe("sandbox:completed");
+      workerSubscriber.on("message", (channel, message) => {
+        if (channel === "sandbox:completed") {
+          try {
+            const data = JSON.parse(message);
+            // Notify student
+            emitToUserSocket(data.userId, "code:evaluated", data);
+            // Notify admin live room
+            io.to(`admin:${data.testId}`).emit("admin:codeGraded", data);
+          } catch (e) {
+            console.error("[Worker Message Parse Error]", e);
+          }
+        }
+      });
     } catch (err: any) {
       console.warn(
         `[Socket.IO] Warning: Failed to connect to Redis (${err?.message}). Running in-memory single-node mode.`
       );
     }
-  } else {
-    console.log(
-      "[Socket.IO] REDIS_URL not specified. Running with default in-memory adapter (single instance)."
-    );
   }
 
-  // Socket Authentication Middleware
-  io.use((socket: AuthenticatedSocket, next) => {
+  // Socket Authentication & Blocking Check Middleware
+  io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const cookieHeader = socket.handshake.headers.cookie;
       const authHeader = socket.handshake.headers.authorization;
@@ -88,6 +125,21 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
         return next(new Error("Authentication error: Invalid or expired token"));
       }
 
+      // Check if user is blocked from their assigned room
+      if (decoded.role === "user" && decoded.roomId) {
+        await connectDB();
+        const test = await Test.findOne({ roomId: decoded.roomId });
+        if (test) {
+          const access = await UserTestAccess.findOne({
+            testId: test._id,
+            userId: decoded.userId,
+          });
+          if (access && access.blocked) {
+            return next(new Error("Access denied: You have been blocked from this assessment"));
+          }
+        }
+      }
+
       socket.user = decoded;
       next();
     } catch (err: any) {
@@ -103,14 +155,12 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
       return;
     }
 
-    // Role-specific room joining
+    userSocketMap.set(user.userId, socket.id);
+
     if (user.role === "admin") {
-      // Admin joins monitoring room for a test
       socket.on("admin:join", (testId: string) => {
         if (!testId) return;
-        const roomName = `admin:${testId}`;
-        socket.join(roomName);
-        console.log(`[Admin Socket] Admin ${user.email} joined ${roomName}`);
+        socket.join(`admin:${testId}`);
       });
 
       socket.on("admin:leave", (testId: string) => {
@@ -118,62 +168,40 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
         socket.leave(`admin:${testId}`);
       });
     } else if (user.role === "user") {
-      // Test-taker joins their assigned test room
       const userRoomId = user.roomId;
       if (userRoomId) {
-        const testRoomName = `test:${userRoomId}`;
-        socket.join(testRoomName);
-        console.log(`[User Socket] Student ${user.email} joined ${testRoomName}`);
+        socket.join(`test:${userRoomId}`);
+        socket.join(`user:${user.userId}`);
       }
 
-      // Handle real-time answer submission
+      // MCQ Answer Submission
       socket.on("answer:submit", async (data: ClientSubmitAnswerPayload, callback) => {
         try {
           const { testId, questionId, selectedOption, questionIndex } = data;
-
           if (!testId || !questionId || !selectedOption) {
             if (callback) callback({ success: false, error: "Invalid payload" });
             return;
           }
 
-          // Rate limit: Max 1 answer submit per second per socket to guard against rapid spam
           const rateCheck = checkRateLimit(`submit:${socket.id}`, 1, 1000);
           if (!rateCheck.allowed) {
             if (callback)
-              callback({
-                success: false,
-                error: "Submitting too fast. Please wait a moment.",
-              });
+              callback({ success: false, error: "Submitting too fast. Please wait a moment." });
             return;
           }
 
           await connectDB();
 
-          // Server-side validation: Ensure test exists and matches user's assigned roomId
-          const test = await Test.findById(testId);
-          if (!test) {
-            if (callback) callback({ success: false, error: "Test not found" });
+          // Verify access & not blocked
+          const access = await UserTestAccess.findOne({ testId, userId: user.userId });
+          if (!access || access.blocked) {
+            if (callback) callback({ success: false, error: "Candidate blocked or unauthorized" });
             return;
           }
 
-          if (test.status !== "live") {
-            if (callback) callback({ success: false, error: "Test is not live" });
-            return;
-          }
-
-          if (test.roomId !== user.roomId) {
-            if (callback) callback({ success: false, error: "Unauthorized for this room" });
-            return;
-          }
-
-          // Upsert response atomically
           const now = new Date();
           await ResponseModel.findOneAndUpdate(
-            {
-              testId: test._id,
-              userId: user.userId,
-              questionId,
-            },
+            { testId, userId: user.userId, questionId },
             {
               $set: {
                 selectedOption,
@@ -181,14 +209,14 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
                 isFinal: false,
               },
             },
-            {
-              upsert: true,
-              new: true,
-              setDefaultsOnInsert: true,
-            }
+            { upsert: true, new: true, setDefaultsOnInsert: true }
           );
 
-          // Broadcast to Admin live room instantly
+          // Update user's access status
+          access.status = "in_progress";
+          access.lastSeenQuestionIndex = questionIndex ?? 0;
+          await access.save();
+
           const adminPayload: AdminLiveUpdatePayload = {
             testId,
             userId: user.userId,
@@ -202,16 +230,55 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
 
           io.to(`admin:${testId}`).emit("admin:update", adminPayload);
 
-          if (callback) {
-            callback({ success: true, timestamp: now.toISOString() });
-          }
+          if (callback) callback({ success: true, timestamp: now.toISOString() });
         } catch (error: any) {
-          console.error("[answer:submit error]", error);
           if (callback) callback({ success: false, error: "Submission failed" });
         }
       });
 
-      // Handle final test completion submission
+      // 2-Minute Code Snapshot Sync
+      socket.on("code:snapshot", async (data: ClientCodeSnapshotPayload) => {
+        try {
+          const { testId, questionId, code, language } = data;
+          if (!testId || !questionId || code === undefined) return;
+
+          await connectDB();
+
+          // Check not blocked
+          const access = await UserTestAccess.findOne({ testId, userId: user.userId });
+          if (!access || access.blocked) return;
+
+          const now = new Date();
+          await CodeSnapshot.findOneAndUpdate(
+            { testId, userId: user.userId, questionId },
+            {
+              $set: {
+                code,
+                language: language || "javascript",
+                capturedAt: now,
+              },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+
+          const adminCodePayload: AdminCodeUpdatePayload = {
+            testId,
+            userId: user.userId,
+            userName: user.name || "Student",
+            userEmail: user.email,
+            questionId,
+            code,
+            language: language || "javascript",
+            capturedAt: now.toISOString(),
+          };
+
+          io.to(`admin:${testId}`).emit("admin:codeUpdate", adminCodePayload);
+        } catch (e: any) {
+          console.error("[code:snapshot error]", e.message);
+        }
+      });
+
+      // User Final Completion
       socket.on("user:completed", async (payload: { testId: string }, callback) => {
         try {
           const { testId } = payload;
@@ -219,10 +286,14 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
 
           await connectDB();
 
-          // Mark all responses of this user for this test as isFinal: true
           await ResponseModel.updateMany(
             { testId, userId: user.userId },
             { $set: { isFinal: true } }
+          );
+
+          await UserTestAccess.findOneAndUpdate(
+            { testId, userId: user.userId },
+            { $set: { status: "completed" } }
           );
 
           const now = new Date();
@@ -238,14 +309,13 @@ export async function initSocketServer(server: HttpServer): Promise<SocketIOServ
 
           if (callback) callback({ success: true });
         } catch (error: any) {
-          console.error("[user:completed error]", error);
           if (callback) callback({ success: false, error: "Completion failed" });
         }
       });
     }
 
     socket.on("disconnect", () => {
-      // Disconnect handled cleanly
+      userSocketMap.delete(user.userId);
     });
   });
 

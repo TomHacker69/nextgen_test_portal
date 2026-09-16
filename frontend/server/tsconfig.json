@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": false,
+    "types": ["node"],
+    "outDir": "./dist",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "noEmitOnError": false,
+    "paths": {
+      "@nextgen/shared-types": ["../packages/shared-types/src/index.ts"],
+      "@nextgen/db": ["../packages/db/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

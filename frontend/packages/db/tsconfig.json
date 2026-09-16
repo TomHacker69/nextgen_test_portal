@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@nextgen/shared-types": ["../../packages/shared-types/src"],
+      "@nextgen/db": ["./src"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

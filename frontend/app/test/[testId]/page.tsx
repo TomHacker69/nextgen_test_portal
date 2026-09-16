@@ -427,7 +427,7 @@ export default function TestPage({
 
               {/* Options */}
               <div className="space-y-3">
-                {currentQuestion.options.map((opt) => {
+                {currentQuestion?.options?.map((opt) => {
                   const isSelected = selectedOption === opt.key;
                   return (
                     <button

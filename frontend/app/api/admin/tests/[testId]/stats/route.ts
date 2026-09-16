@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import Test from "@/models/Test";
 import Question from "@/models/Question";
 import User from "@/models/User";
+import UserTestAccess from "@/models/UserTestAccess";
 import ResponseModel from "@/models/Response";
 import { getSession } from "@/lib/auth";
 import { ILiveParticipantRow } from "@/types";
@@ -53,11 +54,31 @@ export async function GET(
       responseByUser[uId].lastAnsweredAt = r.answeredAt?.toISOString();
     }
 
+    // Derive the test's absolute end time (per-user access records may extend it)
+    const baseEnd = new Date(
+      test.scheduledStartTime.getTime() + test.durationMinutes * 60 * 1000
+    );
+
+    // Fetch per-user access records to populate blocked / extra-time / deadline fields
+    const accessRecords = await UserTestAccess.find({ testId }).lean();
+    const accessByUser: Record<
+      string,
+      { blocked: boolean; extraMinutes: number; personalEndTime: Date }
+    > = {};
+    for (const a of accessRecords) {
+      accessByUser[a.userId.toString()] = {
+        blocked: a.blocked,
+        extraMinutes: a.extraMinutes,
+        personalEndTime: a.personalEndTime,
+      };
+    }
+
     // Construct participant rows
     const participants: ILiveParticipantRow[] = users.map((u) => {
       const uId = u._id.toString();
       const userResp = responseByUser[uId] || { answers: {}, isFinal: false };
       const answeredCount = Object.keys(userResp.answers).length;
+      const access = accessByUser[uId];
 
       return {
         userId: uId,
@@ -67,7 +88,14 @@ export async function GET(
         currentQuestionIndex: answeredCount,
         totalQuestions: questions.length,
         answers: userResp.answers,
-        isCompleted: userResp.isFinal || (questions.length > 0 && answeredCount >= questions.length),
+        codeSnapshots: {},
+        gradingStatus: {},
+        scores: {},
+        blocked: access?.blocked ?? false,
+        extraMinutes: access?.extraMinutes ?? 0,
+        personalEndTime: (access?.personalEndTime ?? baseEnd).toISOString(),
+        isCompleted:
+          userResp.isFinal || (questions.length > 0 && answeredCount >= questions.length),
         lastAnsweredAt: userResp.lastAnsweredAt,
         isOnline: false,
       };

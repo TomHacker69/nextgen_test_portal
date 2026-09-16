@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@nextgen/db": ["../packages/db/src"],
+      "@nextgen/shared-types": ["../packages/shared-types/src"]
+    }
+  },
+  "include": ["worker/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

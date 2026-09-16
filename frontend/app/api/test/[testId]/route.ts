@@ -47,7 +47,7 @@ export async function GET(
     let isCompleted = false;
 
     for (const r of userResponses) {
-      responseMap[r.questionId.toString()] = r.selectedOption;
+        responseMap[r.questionId.toString()] = r.selectedOption || "";
       if (r.isFinal) isCompleted = true;
     }
 
