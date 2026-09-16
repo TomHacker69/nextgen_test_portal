@@ -1,0 +1,955 @@
+﻿=== CHUNK 1 ===
+NEXTGEN ASSESSMENT PORTAL
+FINAL PRODUCT REQUIREMENTS DOCUMENT - PRODUCTION v3
+MongoDB + FastAPI + WebSockets + Next.js + Redis Pub/Sub + Coding Judge
+Production target: 1,000+ concurrent students | Bulk Student Import + Manual Student Management | Question Bank + Exam Assembly
+1. Executive Summary
+NextGen Assessment Portal is a high-concurrency assessment and examination platform for academic tests, recruitment assessments, coding contests, and internal evaluations. It combines a simple, distraction-minimized student experience with a separate, data-rich administrator experience.
+The platform must support 1,000+ students participating at the same time, with server-authoritative exam timing, durable answer persistence in MongoDB, WebSocket-based live activity, detailed candidate review, question-level analytics, student leaderboard, CSV/XLSX reporting, security-event monitoring, and isolated coding evaluation.
+1.1 Current Project Baseline
+The supplied project is an existing Next.js assessment portal. It already contains substantial exam functionality such as admin/student flows, exam management, student eligibility, attempt handling, server-side expiry concepts, MCQ autosave, coding questions, Judge0 integration, scoring, results, security events, and result exports. The new architecture should preserve the useful frontend and business behavior while moving the backend/data layer to FastAPI + MongoDB and adding the live monitoring/analytics capabilities defined in this PRD.
+1.2 Product Positioning
+Student-facing experience: controlled exam delivery, clear question navigation, timer, save state, coding editor, recovery.
+Admin-facing experience: live exam control, student list with scores/status, candidate detail, per-question correctness, question analytics, leaderboard, results, integrity, exports.
+Platform-level capability: high-concurrency delivery, durable state, real-time event distribution, auditability, recovery, scalable coding execution.
+2. Reference Products and Research Inputs
+The feature set is intentionally derived from patterns seen across established assessment products, not copied from any single platform. The research emphasis is on question banks, randomization, multiple question types, coding assessment, live monitoring, question analytics, candidate reports, integrity controls, and reporting.
+HackerEarth - Question types / assessment environment - Multiple choice, subjective, programming, data science, SQL, ML, diagram, project-style questions; useful reference for recruitment assessment breadth. Source
+HackerEarth - Question analytics - Question-level analytics with attempt/solve information and a question-health concept. Source
+HackerRank - Question types - Broad technical assessment question-type support including coding, database, AI, data science, code review, MCQ, subjective, and specialized project modes. Source
+HackerRank - Proctor Mode / Session Replay - Reference for integrity events, screenshots, webcam signals, multiple-monitor controls, and session replay. Source
+TestInvite - Test Analytics - Reference for score distributions, completion statistics, dimensions, question difficulty/discrimination, and assessment quality reporting. Source
+ClassMarker - Test features - Reference for question banks, random question selection, answer randomization, timing, restrictions, access lists, and reporting. Source
+ClassMarker - Random questions - Reference for random question pools and per-category sampling. Source
+Hunter - open-source assessment/contest concept - Reference for contest/coding workflows, multiple question types, live scoring/leaderboard, and isolated coding execution patterns. Source
+3. Product Goals and Success Criteria
+3.1 Goals
+Deliver secure and reliable assessments to 1,000+ concurrent students.
+Provide a student experience that never reveals correctness during the exam unless an explicit post-exam configuration allows it.
+Provide admins with real-time visibility into candidate activity and detailed post-exam analytics.
+Support MCQ first-class and coding questions with isolated judging.
+Make all important state server-authoritative and recoverable after refresh, disconnect, or browser restart according to configured policy.
+Provide auditable final results and exports in CSV/XLSX.
+3.2 Success Criteria
+4. Scope
+4.1 In Scope
+Student authentication, eligibility, exam access, attempts, timing, navigation, answers, autosave, recovery, submission.
+Admin authentication and role-based access control.
+Exam creation, scheduling, publishing, candidate assignment, settings, sections, question pools.
+Question bank, question reuse, tags, difficulty, versions, randomization, option shuffling.
+Question types: MCQ, multiple-select, coding, short/long answer, fill-in-the-blank (extensible).
+Live monitor over WebSockets.
+Candidate detail view with per-question correct/wrong and marks after admin authorization.
+Dedicated Question Analytics page sorted by highest solved/attempted to least solved by default.
+Dedicated Leaderboard page listing rank 1 through the final candidate, with pagination and filters.
+CSV/XLSX export of leaderboard, candidate details, and analytics.
+Integrity events, audit logs, optional proctoring integrations.
+Coding execution through an isolated judge worker system.
+4.2 Out of Scope for MVP
+Full video streaming of every candidate screen/camera feed as a default behavior.
+Automated cheating verdicts from AI; integrity signals are evidence for review.
+Complex psychometric certification claims or high-stakes statistical validation.
+5. High-Level System Architecture
+                         INTERNET / CAMPUS NETWORK
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé   Next.js UI    Γöé
+                         Γöé Student + Admin Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                         REST     Γöé     WebSocket
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé NGINX / LB      Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                     ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                     Γû╝            Γû╝            Γû╝
+                 FastAPI-1    FastAPI-2    FastAPI-N
+                     Γöé            Γöé            Γöé
+                     Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+                     Γöé            Γöé            Γöé
+                     Γû╝            Γû╝            Γû╝
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé MongoDB        Γöé
+                         Γöé Source of truthΓöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γû▓
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé Redis Pub/Sub   Γöé
+                         Γöé live event bus  Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                         WebSocket fan-out
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé Admin Live UI   Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+ Coding submission path:
+ Student -> FastAPI -> Queue -> Judge Worker -> Sandbox/Judge0 -> Result -> MongoDB -> Student/Admin
+5.1 Technology Stack
+5.2 Why MongoDB is Mandatory
+MongoDB is the designated primary database for this product. It will store durable exam state and reporting data. The design should favor atomic single-document updates or carefully bounded transactional operations, with indexes tailored to attempt, answer, event, leaderboard, and analytics queries.
+5.3 Why Redis is Included for the 1,000+ Target
+Redis is not the system of record. Its purpose is distributed coordination: when multiple FastAPI instances are running, an event received by one instance must reach admins connected to another instance. Redis Pub/Sub provides that event bridge. The portal can be developed first wi
+=== CHUNK 2 ===
+th a single FastAPI instance, but the target production topology should include Redis once horizontal scaling is enabled.
+Student -> FastAPI #1 -> MongoDB (persist)
+                     \ -> Redis Pub/Sub (notify)
+                                  |
+                                  v
+                            FastAPI #3
+                                  |
+                                  v
+                         Admin WebSocket
+
+MongoDB = durable source of truth
+Redis     = fast, transient coordination / distribution
+6. User Roles and Permissions
+7. Student Experience Requirements
+7.1 Student Navigation
+STUDENT
+Γö£ΓöÇΓöÇ Dashboard
+Γö£ΓöÇΓöÇ My Exams
+Γö£ΓöÇΓöÇ Instructions / System Check
+ΓööΓöÇΓöÇ Profile
+
+Exam
+Γö£ΓöÇΓöÇ Timer
+Γö£ΓöÇΓöÇ Section selector
+Γö£ΓöÇΓöÇ Question view
+Γö£ΓöÇΓöÇ Question palette
+Γö£ΓöÇΓöÇ Save state
+Γö£ΓöÇΓöÇ Previous / Next
+Γö£ΓöÇΓöÇ Mark for review
+ΓööΓöÇΓöÇ Submit
+7.2 Exam Start Flow
+Authenticate the student.
+Verify exam eligibility and attempt limit.
+Run system checks required by exam policy.
+Create or resume an attempt.
+Bind the attempt to an exam snapshot/version.
+Return only the student-safe exam payload.
+Open the WebSocket and begin heartbeat/connection monitoring.
+7.3 Student Must Not Receive
+Correct answer identifiers.
+is_correct flags.
+Per-option correctness data.
+Current score if the exam policy does not allow live score display.
+Other studentsΓÇÖ names, scores, rank, or activity.
+Hidden test cases or judge internals.
+7.4 Student Answer Response Contract
+POST /api/student/attempts/{attempt_id}/answers
+
+Request:
+{
+  "question_id": "q_123",
+  "answer": {"option_id": "B"}
+}
+
+Response:
+{
+  "saved": true,
+  "question_id": "q_123",
+  "server_time": "..."
+}
+
+No correctness or correct answer is returned.
+7.5 Recovery
+Refresh restores the current attempt and persisted answers.
+WebSocket disconnect shows a non-blocking reconnect state unless the exam policy requires hard blocking.
+Reconnect fetches server state and reconciles any locally queued unsent operations.
+Final submission is idempotent and cannot double-count scores.
+8. Admin Experience Requirements
+ADMIN
+Γö£ΓöÇΓöÇ Dashboard
+Γö£ΓöÇΓöÇ Live Monitor
+Γö£ΓöÇΓöÇ Exams
+Γöé   Γö£ΓöÇΓöÇ All Exams
+Γöé   Γö£ΓöÇΓöÇ Create / Edit
+Γöé   Γö£ΓöÇΓöÇ Scheduled
+Γöé   Γö£ΓöÇΓöÇ Live
+Γöé   ΓööΓöÇΓöÇ Archived
+Γö£ΓöÇΓöÇ Question Bank
+Γö£ΓöÇΓöÇ Analytics
+Γöé   Γö£ΓöÇΓöÇ Exam Analytics
+Γöé   Γö£ΓöÇΓöÇ Question Analytics
+Γöé   ΓööΓöÇΓöÇ Section / Skill Analytics
+Γö£ΓöÇΓöÇ Leaderboard
+Γö£ΓöÇΓöÇ Students
+Γö£ΓöÇΓöÇ Integrity Center
+Γö£ΓöÇΓöÇ Results
+Γö£ΓöÇΓöÇ Reports / Export
+Γö£ΓöÇΓöÇ Announcements
+Γö£ΓöÇΓöÇ Audit Logs
+ΓööΓöÇΓöÇ Settings
+8.1 Admin Landing Dashboard
+EXAM ANALYTICS
+Candidates       1000+
+Started           972
+Completed         918
+In Progress        54
+Connected         947
+Average Score    67.4%
+Average Time    42m 18s
+
+Quick actions:
+[Live Monitor] [Leaderboard] [Question Analytics] [Results] [Export]
+8.2 Student Score List on Admin Home
+The admin must be able to see a candidate list with the student name and current/final score directly from the relevant exam dashboard. A candidate row is clickable/tappable and opens the candidate detail page.
+8.3 Candidate Detail
+Rahul Sharma
+Score: 86 / 100
+Rank: 12
+Accuracy: 81.6%
+Time Taken: 42m 18s
+
+QUESTION BREAKDOWN
+Q1  Γ£ô Correct   +2
+Q2  Γ£ù Wrong      0
+Q3  Γ£ô Correct   +2
+...
+
+For each question:
+- question id/title
+- selected answer
+- correct answer (admin only)
+- status
+- marks obtained
+- time taken
+- coding submission summary where relevant
+9. Exam Management
+9.1 Exam Lifecycle
+DRAFT -> PREVIEW -> SCHEDULED -> LIVE -> PAUSED/RESUMED -> ENDED -> EVALUATION -> RESULTS RELEASED -> ARCHIVED
+9.2 Exam Configuration
+9.3 Exam Snapshot
+When an exam becomes LIVE, the final question selection/configuration must be snapshotted or version-bound. Changes to the reusable question bank must not unexpectedly alter an already-started exam.
+10. Question Bank and Authoring
+10.1 Question Bank
+Reusable questions with stable IDs and version history.
+Tags: subject, topic, subtopic, skill, difficulty, language.
+Status: draft, reviewed, published, archived.
+Rich media support where needed.
+Import/export support for bulk question authoring.
+10.2 Supported Question Types
+10.3 Randomization / Pooling
+Fixed questions may be mixed with random questions.
+Random pool selection can be constrained by category, difficulty, tag, or section.
+Option order can be randomized for MCQs.
+Seeded deterministic randomization must be stored per attempt so recovery produces the same paper.
+11. Real-Time Live Monitoring
+11.1 Purpose
+Live monitoring answers the question: ΓÇ£What is happening right now?ΓÇ¥ It is separate from post-exam analytics and leaderboard reporting.
+11.2 WebSocket Channels
+/ws/student/{attempt_id}
+/ws/admin/{exam_id}
+
+Student socket: exam state + safe acknowledgements
+Admin socket: live candidate events + admin control acknowledgements
+11.3 Event Categories
+11.4 Event Rule
+12. Question Analytics (Dedicated Page)
+Question Analytics is a standalone admin page, not a small widget buried in the dashboard. Its default order is ΓÇ£Highest Solved / Attempted ΓåÆ Least Solved / AttemptedΓÇ¥. This matches the intended operational view: admins can immediately see which questions were answered most and least often.
+12.1 Page
+GET /api/admin/exams/{exam_id}/question-analytics
+GET /api/admin/exams/{exam_id}/questions/{question_id}/analytics
+12.2 Default List
+12.3 Sorting / Filtering
+Most solved / attempted (default).
+Least solved / attempted.
+Most correct.
+Lowest accuracy.
+Highest accuracy.
+Longest average time.
+Shortest average time.
+Difficulty, section, tag, and question type filters.
+12.4 Question Detail
+Q3 - Hashing
+Total candidates: 1000
+Answered: 941
+Unanswered: 59
+Correct: 632
+Wrong: 309
+Accuracy: 67.2%
+Average time: 58s
+
+OPTION DISTRIBUTION
+A -> 102
+B -> 632  (correct)
+C -> 141
+D -> 66
+
+Optional advanced metrics:
+- difficulty index
+- discrimination index
+- response distribution
+- score contribution
+- median time
+12.5 Coding Question Analytics
+Attempts, submissions, accepted, wrong answer, compile error, runtime error, timeout.
+Pass rate and test-case pass distribution.
+Average execution time where collected.
+13. Student Leaderboard (Dedicated Page)
+Leaderboard is a dedicated admin page showing the final or live ranking of all candidates. The final leaderboard must support 1 through the last candidate, pagination, filtering, deterministic tie handling, and export.
+13.1 Leaderboard View
+/admin/exams/{exam_id}/leaderboard
+
+Rank | Student | Roll No. | Score | Accuracy | Time | Status
+1    | Rahul   | ...      | 96/100| 96%      | 38m | Submitted
+2    | Ankit   | ...      | 94/100| 94%      | 41m | Submitted
+...
+1008 | ...     | ...      | ...    | ...      | ...  | Submitted
+13.2 Pagination and Sorting
+Default page size: 50 or 100; configurable up to a safe limit.
+Search by name, roll number, email, candidate ID.
+Filter by group, batch, status, exam attempt state.
+Sort by score, accuracy, time, name, roll number.
+13.3 Rank Rules
+The ranking algorithm must be deterministic. A recommended deterministic order is: higher final score first; then higher accuracy; then lower time taken; then stable candidate ID as the final tie-break. The exact tie policy is an exam configuration and must be stored with the exam.
+13.4 Leaderboard Export
+CSV export.
+XLSX export.
+Export reflects finalized data and the exact applied filter/sort if the user chooses filtered export.
+14. Results, Candidate Review, and Exports
+14.1 Candidate Review
+14.2 CSV Export Columns
+Rank,Name,RollNumber,StudentId,Score,MaxScore,Accuracy,Correct,Wrong,Unattempted,TimeTaken,Status,SubmittedAt
+14.3 XLSX Workbook
+15. Exam and Section Analytics
+15.1 Exam-Level Metrics
+Candidates invited / eligible / started / completed / in progress / abandoned.
+Average, median, minimum, maximum score.
+Score distribution.
+Average and median completion time.
+Section-wise average and score distribution.
+Question-level accuracy and attempt rate.
+15.2 Skill / Dimension Analytics
+Questions may be tagged with dimensions such as DSA, Problem Solving, DBMS, Programming, Aptitude, or other skills. The analytics engine can aggregate performance by dimension 
+=== CHUNK 3 ===
+to support exam quality and learning insights.
+Dimension
+DSA               69%
+Problem Solving   78%
+DBMS              61%
+Programming       84%
+15.3 Advanced Question Quality Metrics
+The platform may calculate difficulty and discrimination style measures for sufficiently large, valid datasets. These should be labeled as analytics indicators, not as scientific certification of question quality. Reference products such as HackerEarth and TestInvite expose question-health/difficulty/discrimination concepts.
+16. Integrity and Anti-Cheating Controls
+16.1 Browser Events
+16.2 Integrity Center
+Integrity Center
+
+Candidate      Events
+Rahul          Tab switch x2, Fullscreen exit x1
+Ankit          Network loss x3
+Priya          No events
+
+Filters: event type / severity / candidate / time window
+16.3 Optional Advanced Proctoring
+Webcam presence and face-count checks.
+Periodic screenshots or screen monitoring.
+Session replay with a timeline of integrity markers.
+AI-assisted anomaly summaries, clearly labeled as assistive signals.
+17. Coding Assessment
+17.1 Coding Flow
+Student -> FastAPI -> Submission Record -> Queue -> Judge Worker -> Sandbox -> Test Cases -> Result -> MongoDB -> Admin/Student
+17.2 Security
+Never execute untrusted code inside the FastAPI application process.
+Use a sandbox with CPU, memory, process, filesystem, network, and time limits.
+Hidden tests are never returned to the student.
+Judge credentials are server-side only.
+17.3 Coding Result States
+Accepted
+Wrong Answer
+Compile Error
+Runtime Error
+Time Limit Exceeded
+Memory Limit Exceeded
+Judge Unavailable / Infrastructure Error
+18. MongoDB Data Model
+The database is MongoDB. Collection names are logical and may be prefixed/namespaced per deployment.
+18.1 Answer Uniqueness
+Create a unique logical key on (attemptId, questionId) so repeated saves become idempotent upserts rather than duplicate answer records.
+18.2 Required Index Families
+attempts:   { examId, studentId }
+attempts:   { examId, status }
+attempts:   { examId, score: -1 }
+answers:    { attemptId, questionId } UNIQUE
+answers:    { examId, questionId } via denormalized examId if analytics queries require it
+events:     { examId, timestamp: -1 }
+events:     { attemptId, timestamp: -1 }
+results:    { examId, score: -1 }
+users:      { email } UNIQUE (where policy permits)
+19. REST API Contract
+19.1 Authentication
+19.2 Student APIs
+19.3 Admin APIs
+20. WebSocket Protocol
+20.1 Student -> Server
+{ "type": "QUESTION_OPENED", "question_id": "q123" }
+{ "type": "ANSWER_SELECTED", "question_id": "q123", "answer": {"option_id":"B"} }
+{ "type": "HEARTBEAT", "client_time": "..." }
+{ "type": "TAB_SWITCH", "meta": {"visibility":"hidden"} }
+{ "type": "FULLSCREEN_EXIT" }
+{ "type": "CODE_RUN", "question_id": "q9" }
+20.2 Server -> Student
+{ "type": "ANSWER_SAVED", "question_id": "q123" }
+{ "type": "SERVER_TIME", "now": "..." }
+{ "type": "ADMIN_MESSAGE", "message_id": "m1", "text": "..." }
+{ "type": "ATTEMPT_PAUSED" }
+{ "type": "ATTEMPT_RESUMED" }
+{ "type": "ATTEMPT_FINALIZING" }
+No student event sent by the server may include `correct_option`, `is_correct`, or an equivalent correctness field unless the exam policy explicitly makes post-answer feedback available. Default is always hidden.
+20.3 Server -> Admin
+{
+  "type":"ANSWER_ACTIVITY",
+  "student_id":"S102",
+  "question_id":"Q14",
+  "selected_option":"B",
+  "is_correct":false,
+  "score_delta":0,
+  "timestamp":"..."
+}
+20.4 Ordering and Duplicates
+Every event receives eventId and server timestamp.
+Client events may carry sequence numbers.
+Server deduplicates where the operation is idempotent.
+Admin UI can tolerate out-of-order low-value events; authoritative state comes from MongoDB/API reads.
+21. Timing and State Machine
+Attempt states
+CREATED -> IN_PROGRESS -> PAUSED -> RESUMED -> SUBMITTED
+                       |
+                       -> EXPIRED
+                       -> TERMINATED
+
+Authoritative fields:
+startedAt
+expiresAt
+status
+serverTime
+21.1 Timer Requirements
+Browser timer is display only.
+Server validates start/end/expiration on all protected operations.
+Auto-submit/finalization is idempotent.
+Admin time extensions append an audit record and update the authoritative expiry.
+22. Security Architecture
+22.1 Authentication and Authorization
+Separate student and admin auth scopes/tokens where appropriate.
+Use secure, httpOnly cookies or equivalent secure token storage.
+RBAC on every admin endpoint.
+Object-level authorization on attempt/question/result resources to prevent IDOR.
+22.2 Data Protection
+TLS/HTTPS in production.
+Secrets in environment/secret manager; never in frontend bundles.
+Password hashes only; never return hashes in API responses.
+PII minimized in live events and logs.
+22.3 Rate Limiting
+Login throttling.
+Public/authenticated API rate limits where abuse is possible.
+Event/heartbeat rate limits to prevent accidental flooding.
+22.4 Frontend Trust Boundary
+23. Scalability and 1,000+ Concurrent Candidates
+23.1 Capacity Model
+The capacity target is not merely ΓÇ£1,000 WebSockets.ΓÇ¥ It includes simultaneous authentication, exam-start requests, question reads, answer saves, heartbeats, integrity events, admin monitoring, and potentially coding submissions. The production test must model the actual arrival pattern.
+23.2 Scaling Strategy
+Stateless FastAPI HTTP handlers except for WebSocket connection state and short-lived coordination data.
+MongoDB connection pooling and query/index optimization.
+Redis Pub/Sub for cross-instance live event fan-out.
+Load balancer with WebSocket upgrade support and appropriate idle timeouts.
+Coding execution separated into workers so judge load cannot starve the API.
+Pre-generate exam snapshots/question sets where possible to avoid synchronized start-time work.
+23.3 Load Test Scenario
+Scenario A - 1000 candidates
+1. Login
+2. Start exam within a 2-minute window
+3. Load 40 questions
+4. Answer 1-2 questions per minute
+5. Navigate randomly
+6. Heartbeat every N seconds
+7. Generate intermittent integrity events
+8. Submit near the end
+
+Scenario B - mixed workload
+1000 candidate sessions + 1 admin live monitor + 100 coding submissions
+
+Measure:
+p50 / p95 / p99 latency, error rate, DB CPU, connections, WS drops, memory, queue time.
+23.4 Performance Guardrails
+No N+1 query patterns on admin candidate lists.
+Leaderboard queries use indexed fields and pagination.
+Question analytics may use pre-aggregated materialized documents rather than recomputing from all answers on every page load.
+Heartbeat processing must not perform expensive analytics per event.
+24. Deployment and Operations
+24.1 Services
+nginx / load balancer
+fastapi-api (N replicas)
+redis
+mongodb (replica set / managed service)
+judge-worker(s)
+optional worker/analytics process
+monitoring/logging
+24.2 Environment Variables
+24.3 Backup / Recovery
+Database snapshot before the exam.
+Point-in-time or equivalent backup capability where supported by the chosen MongoDB deployment.
+Export final results after the exam.
+Document restore procedure and verify backups by test restore.
+25. Admin Live Controls
+26. UI Page Inventory
+26.1 Student Pages
+26.2 Admin Pages
+27. UX Requirements
+27.1 Student
+Minimal, distraction-reduced layout.
+Timer always visible.
+Clear save status: Saved / Saving / Reconnecting.
+Question palette with Answered / Unanswered / Review markers, never Correct/Wrong during exam.
+Responsive layout for supported desktop exam devices.
+27.2 Admin
+Dense but readable tables with filters, pagination, fixed headers where useful.
+Click/tap candidate row to open complete result breakdown.
+Use color to represent status, not as the only source of meaning.
+Analytics pages support export and drill-down.
+28. Analytics Computation Rules
+28.1 Materialized Analytics
+To keep admin pages fast at 1,000+ candidates, the system may maintain exam-scoped analytics documents updated asynchronously or at controlled intervals. The final result and question analytics must be reproducible from durable answer/attempt records.
+29. Audit Log
+=== CHUNK 4 ===
+ging
+Audit records include actor, action, target, timestamp, source/device metadata as permitted, and compact before/after summaries for administrative changes.
+30. Testing Strategy and Acceptance Criteria
+30.1 Unit Tests
+Scoring rules, negative marks, partial coding scores, tie handling.
+Expiration logic and time extension.
+Question visibility / student-safe serializers.
+Authorization and IDOR checks.
+Export transformations.
+30.2 Integration Tests
+Login -> start -> load -> answer -> refresh -> reconnect -> submit.
+Admin login -> student list -> candidate detail -> analytics -> leaderboard -> export.
+Coding submission -> judge -> result -> score.
+30.3 Failure Tests
+MongoDB transient failure.
+Redis unavailable.
+WebSocket disconnect/reconnect.
+Judge unavailable.
+Duplicate answer save.
+Duplicate final submission.
+Server restart during an active exam.
+30.4 Security Acceptance Tests
+Student cannot read another attempt.
+Student cannot read correct answer or is_correct for active exam.
+Student cannot modify score through payload manipulation.
+Admin-only endpoints reject student credentials.
+Expired attempt cannot continue.
+30.5 Load Acceptance
+Execute realistic 1,000+ user test profile before production exam.
+No answer loss under load-test fault injection.
+WebSocket reconnection rate remains within agreed threshold.
+API and DB resource utilization have documented headroom.
+31. Pre-Exam Production Checklist (1,000+)
+[ ] HTTPS and production URL verified.
+[ ] MongoDB production connection and backup verified.
+[ ] MongoDB indexes verified.
+[ ] Redis connection and Pub/Sub test verified.
+[ ] FastAPI health/readiness endpoints verified.
+[ ] WebSocket upgrade and idle-timeout settings verified.
+[ ] Student login tested with real candidate sample.
+[ ] Admin login tested.
+[ ] Exam published with correct schedule.
+[ ] Candidate eligibility verified.
+[ ] Exam question snapshot locked.
+[ ] Timer/expiry verified against server time.
+[ ] Autosave and refresh recovery tested.
+[ ] WebSocket disconnect/reconnect tested.
+[ ] Correct answers are absent from student payloads.
+[ ] Scoring verified with known-answer test account.
+[ ] Leaderboard verified.
+[ ] Question Analytics sorted highest solved to least solved.
+[ ] Candidate detail shows per-question correctness to admin.
+[ ] CSV export verified.
+[ ] XLSX export verified.
+[ ] Judge health check passed.
+[ ] C/C++/Java/Python (as configured) test submissions passed.
+[ ] Hidden tests are not exposed.
+[ ] Integrity events verified.
+[ ] Audit logs verified.
+[ ] Database backup current.
+[ ] Monitoring dashboards open during exam.
+[ ] Emergency admin account/process documented.
+[ ] Load test completed with 1,000+ realistic users.
+32. Implementation Plan
+Phase 0 - Production Safety
+Freeze current exam business rules and question content.
+Map existing frontend calls/routes to target FastAPI APIs.
+Create MongoDB collections/indexes and migration/seed strategy.
+Deploy dev/staging FastAPI + MongoDB + Redis.
+Phase 1 - Core Backend
+Auth/RBAC.
+Exam/question/attempt/answer services.
+Server timer and submission finalization.
+Student-safe and admin-safe serializers.
+Phase 2 - WebSockets / Live
+Student WS + heartbeat.
+Admin WS + live activity.
+Redis Pub/Sub bridge.
+Reconnect/resync logic.
+Phase 3 - Admin Intelligence
+Candidate score list and candidate detail.
+Dedicated Question Analytics page.
+Dedicated Leaderboard page.
+CSV/XLSX exports.
+Phase 4 - Coding / Integrity
+Judge workers/sandbox.
+Integrity events and audit center.
+Optional proctoring integrations.
+Phase 5 - Scale Verification
+1,000+ candidate load test.
+Failure injection and recovery test.
+Performance tuning and production runbook.
+33. Future Enhancements
+Session replay with event timeline.
+AI-assisted question generation and review workflows.
+AI-allowed assessment mode with transparent AI usage logging.
+Advanced skill/dimension analytics.
+Adaptive testing / controlled question pools.
+Plagiarism/code similarity analysis.
+Desktop secure exam application if browser controls are insufficient.
+Multi-tenant organization model.
+34. Definition of Done
+35. Reference Feature Matrix
+This matrix is a product-design reference, not a claim that each product supports every feature in identical ways or in every plan/tier.
+36. Final Architecture Decision Record
+ADR-001: MongoDB as the Primary Database
+Decision: MongoDB is mandatory. All durable exam entities and final results are stored in MongoDB.
+ADR-002: FastAPI as Backend
+Decision: FastAPI is the backend framework for REST + WebSockets. The existing frontend remains the presentation layer.
+ADR-003: Redis for Distributed Real-Time Coordination
+Decision: Redis is part of the target production topology for multi-instance WebSocket event distribution. It is not the source of truth and should not replace MongoDB for exam answers.
+ADR-004: Separate Analytics Pages
+Decision: Question Analytics and Student Leaderboard are separate first-class admin pages. Dashboard contains high-level summary and quick links only.
+ADR-005: Server-Authoritative Scoring
+Decision: Score/correctness is computed server-side. Student clients receive only the minimum information needed to continue the exam.
+ADR-006: Isolated Code Execution
+Decision: Code executes in worker/sandbox infrastructure outside FastAPI request handling.
+37. Reference URLs
+HackerEarth - Question types / assessment environment
+Multiple choice, subjective, programming, data science, SQL, ML, diagram, project-style questions; useful reference for recruitment assessment breadth.
+https://help.hackerearth.com/hc/en-us/articles/360007390394-hackerearth-library
+HackerEarth - Question analytics
+Question-level analytics with attempt/solve information and a question-health concept.
+https://help.hackerearth.com/hc/en-us/articles/360033387854-question-analytics
+HackerRank - Question types
+Broad technical assessment question-type support including coding, database, AI, data science, code review, MCQ, subjective, and specialized project modes.
+https://support.hackerrank.com/articles/2354192461-question-types-in-hackerrank-tests
+HackerRank - Proctor Mode / Session Replay
+Reference for integrity events, screenshots, webcam signals, multiple-monitor controls, and session replay.
+https://support.hackerrank.com/articles/3121307537-july-2025-release-notes
+TestInvite - Test Analytics
+Reference for score distributions, completion statistics, dimensions, question difficulty/discrimination, and assessment quality reporting.
+https://www.testinvite.com/dy/en/pages/documentation/test-analytics
+ClassMarker - Test features
+Reference for question banks, random question selection, answer randomization, timing, restrictions, access lists, and reporting.
+https://www.classmarker.com/online-testing/faq/
+ClassMarker - Random questions
+Reference for random question pools and per-category sampling.
+https://www.classmarker.com/online-testing/manual/autoquestions
+Hunter - open-source assessment/contest concept
+Reference for contest/coding workflows, multiple question types, live scoring/leaderboard, and isolated coding execution patterns.
+https://github.com/msc24x/Hunter
+38. Final Product Summary
+STUDENT
+  -> Exam
+  -> Answer
+  -> Save
+  -> Submit
+
+ADMIN
+  -> Dashboard
+  -> Students + Scores
+  -> Click Student
+  -> Per-question Correct/Wrong + Marks
+  -> Question Analytics (Highest Solved -> Least Solved)
+  -> Leaderboard (Rank 1 -> Last)
+  -> CSV/XLSX Export
+  -> Live Monitor
+
+PLATFORM
+  -> MongoDB source of truth
+  -> Redis Pub/Sub for distributed real-time
+  -> WebSocket live state
+  -> Server-authoritative timing/scoring
+  -> Isolated coding judge
+  -> Audit + recovery + load testing
+46. Student Provisioning and Candidate Management
+The portal must support two equivalent ways to create candidates: bulk import from the Google Forms response CSV and manual one-at-a-time creation. Both flows must create the same underlying Student record and must allow the administrator to assign the student to one or more exams.
+46.1 Bulk Student Import
+=== CHUNK 5 ===
+ from Google Forms CSV
+Admin exports Google Forms responses as CSV and opens Admin -> Students -> Import CSV.
+System parses the CSV and shows detected columns.
+Admin maps source columns to canonical fields.
+System validates every row before committing anything.
+Admin receives a preview with valid rows, duplicates, missing fields, invalid values, and import errors.
+Admin confirms the import; only valid records are committed.
+Students can then be bulk-assigned to a selected exam/batch.
+46.1.1 Canonical CSV Fields
+46.1.2 Import Validation Rules
+Roll Number / Student ID must be unique within the student directory.
+Email must be syntactically valid when supplied and should be normalized to a consistent case policy.
+Required fields must not be blank.
+Duplicate rows in the same CSV must be reported before import.
+Existing students must not be silently overwritten. Admin must choose a controlled duplicate policy such as Skip or Update allowed fields.
+The import process must be idempotent where possible so re-uploading the same file does not create duplicate accounts.
+Provide an error CSV containing row number, field, error, and source value for failed rows.
+46.1.3 Import UX
+IMPORT STUDENTS
+
+CSV File: [ Choose File ]
+
+Column Mapping
+Name -> Name
+Email -> Email
+Roll Number -> Roll Number
+Branch -> Branch
+Section -> Section
+
+Password for imported students: [ ******** ]
+Exam: [ Select Exam ]
+Batch: [ Optional ]
+
+[Validate]  [Preview]  [Import & Assign]
+46.2 Manual Student Creation
+A single candidate must be creatable without a CSV upload. This is required for late additions, replacements, or candidates who were not present in the Google Forms export.
+ADD STUDENT
+
+Name                  [________________________]
+Roll Number / ID      [________________________]
+Email                 [________________________]
+Branch                [________________________]
+Section               [________________________]
+Year                  [________________________]
+Password              [ common exam password ]
+Exam                  [ select ]
+
+[Create Student]
+The manual-add form must use the same validation rules as CSV import.
+The admin may assign an exam during creation or later from the Students page.
+Duplicate roll number/email must be detected before account creation.
+Creating a student must not automatically create an exam attempt; it creates eligibility/assignment only.
+46.3 Common Password Policy
+For the controlled college exam, the administrator may set one common password for the imported/created cohort. The login identifier remains unique per student, normally the Roll Number / Student ID.
+Admin enters the common password once during import or in exam/candidate settings.
+The backend hashes the password before persistence. Plain-text passwords must never be stored in MongoDB.
+Student APIs must never return the password or password hash.
+A future exam policy may require a first-login password change, but this is configurable and may be disabled for a controlled exam workflow.
+Resetting the common password must require explicit admin authorization and must be audited.
+46.4 Student Assignment and Eligibility
+Students
+  -> Select / Filter
+  -> Assign to Exam
+  -> Eligible
+  -> Student logs in
+  -> Start Exam
+  -> Attempt created
+Assigning a student to an exam creates eligibility, not an attempt.
+Admin can bulk-select students and assign/unassign them.
+Admin can filter by branch, section, batch, year, status, and import source.
+The exam should optionally support an invite/eligibility window independent of the exam start time.
+A student not in the eligibility set must be rejected at exam start even if the student knows another candidateΓÇÖs URL.
+47. Question Authoring and Exam Assembly - Final Requirements
+The portal must not rely on hard-coded questions. Administrators must be able to author questions, store the correct answer and evaluation metadata in MongoDB, and assemble a test by selecting questions or question pools from the Question Bank.
+47.1 Question Bank
+Reusable question repository with stable Question ID.
+Draft -> Review -> Published -> Archived lifecycle.
+Search by ID, title, text, subject, topic, tag, type, difficulty, creator, and status.
+Question versioning; every published exam references a specific version/snapshot.
+Rich text and media support where required.
+Bulk import via CSV/XLSX/JSON with validation and preview.
+Bulk export for backup and migration.
+Question duplication for authoring variants.
+Question pooling with category/difficulty constraints.
+47.2 Question Creation Form
+CREATE QUESTION
+
+Type: [ MCQ ]
+Question Text: [ rich editor ]
+
+Option A: [____________]
+Option B: [____________]
+Option C: [____________]
+Option D: [____________]
+
+Correct Answer: [ B ]
+Positive Marks: [ 2 ]
+Negative Marks: [ 0.5 ]
+Difficulty: [ Easy ]
+Subject: [ DSA ]
+Topic: [ Arrays ]
+Tags: [ arrays, searching ]
+
+[Save Draft] [Publish]
+47.3 Correct Answer Security
+correct_option / answer key is stored only in server-side protected data.
+Student-safe serializers must explicitly exclude answer keys and internal scoring fields.
+Admin-safe serializers may include correct answer, correctness, marks, and evaluation metadata only after RBAC checks.
+A live exam must use a fixed question version/snapshot so edits to the reusable Question Bank do not alter active candidates.
+47.4 Exam Assembly
+CREATE EXAM
+  -> Basic Details
+  -> Sections
+  -> Add Questions
+       -> Select from Question Bank
+       -> Add Question Pool
+       -> Configure Randomization
+  -> Marking
+  -> Candidate Assignment
+  -> Security
+  -> Preview
+  -> Publish
+Admin can add fixed questions individually.
+Admin can add a pool and select N questions from the pool.
+Admin can define section-level question counts and marks.
+Question and option order can be fixed or randomized.
+Randomization must be deterministic per attempt by storing a seed or generated question ordering.
+Publishing freezes the exam configuration into an immutable snapshot/version.
+48. Final Admin Operational Flow
+The first admin screen after selecting an exam must prioritize candidates and their scores/status. The admin should not have to navigate through multiple pages to answer the basic question: who has completed the exam and what score did each student obtain?
+ADMIN -> SELECT EXAM
+
+EXAM OVERVIEW
+Candidates: 1008
+Started: 996
+Completed: 918
+In Progress: 78
+Connected: 988
+
+STUDENT SCORE LIST
+Name        Roll No       Score      Status
+Rahul       24AIML001     86/100     Submitted
+Ankit       24AIML002     81/100     Submitted
+Priya       24AIML003     79/100     In Progress
+
+Click / Tap Student -> Candidate Detail
+48.1 Candidate Detail
+Clicking a candidate row opens the candidateΓÇÖs complete attempt review. This page is admin-only.
+Rahul Sharma
+Score: 86 / 100
+Rank: 12
+Accuracy: 81.6%
+Time Taken: 42m 18s
+
+Q1  Correct   +2
+Q2  Wrong      0
+Q3  Correct   +2
+Q4  Correct   +2
+...
+
+Each question:
+- Question
+- Student selected answer
+- Correct answer
+- Correct / Wrong
+- Marks obtained
+- Time taken
+49. Final Question Analytics Page
+Question Analytics is a first-class, dedicated admin page. It is not a widget buried in the main dashboard.
+/admin/tests/{test_id}/question-analytics
+
+Default sort: HIGHEST SOLVED / ATTEMPTED -> LEAST SOLVED / ATTEMPTED
+49.1 Question Detail
+Total candidates / denominator used for reporting.
+Solved/attempted count.
+Answered and unattempted.
+Correct and wrong.
+Accuracy.
+Average and, where possible, median time.
+Option distribution for MCQ.
+Submission state distribution for coding.
+Difficulty/topic/section/skill metadata.
+Optional difficulty/discrimination indicators only when sample size is sufficient; clearly label them as analytics indicators.
+50. Final Student Leaderboard and Export
+Leaderboard is a separate admin page. It must contain the full ordered candidate set from Rank 1 through the last eligible/finalized candidate, not only the top few candidates.
+/admin/tests/{test_id}/leaderboard
+
+Rank | Student | Roll No. | Score |
+=== CHUNK 6 ===
+ Accuracy | Time | Status
+Default page size: 50 or 100; pagination required.
+Search by name, roll number, email, or candidate ID.
+Filter by batch, branch, section, status, and attempt state.
+Sort by score, accuracy, time, name, or roll number.
+Ranking must be deterministic and computed server-side from persisted result data.
+Final leaderboard must be based on finalized attempts/results and must not depend on client-side state.
+Provide CSV export.
+Provide XLSX export with multiple sheets for operational reporting.
+50.1 XLSX Workbook Specification
+51. Tomorrow-Exam Production Runbook for 1,000+ Students
+The production build must be treated as an exam-day system. No feature should be considered complete merely because the UI works for a few test accounts. The critical path must be verified with realistic concurrency and failure scenarios.
+51.1 Pre-Exam Checklist
+Import or manually create the complete candidate list and verify the count.
+Verify the common password policy and test representative logins.
+Create/finalize all exam questions and correct answers.
+Publish an immutable exam snapshot.
+Verify candidate eligibility count equals the intended cohort.
+Verify MongoDB indexes and connection pool settings.
+Verify Redis Pub/Sub is reachable and monitored.
+Verify WebSocket connections through the real production domain/reverse proxy.
+Run load tests for simultaneous login/start/answer/heartbeat/submission patterns.
+Run a complete end-to-end rehearsal with student and admin accounts.
+Verify CSV/XLSX export on a representative dataset.
+Verify backup/recovery procedure and emergency admin access.
+51.2 During the Exam
+Monitor connected, disconnected, reconnecting, in-progress, and submitted counts.
+Monitor FastAPI CPU/RAM, MongoDB health, Redis health, WebSocket disconnect rates, and judge queue depth.
+Do not edit published question content or marking rules for a live exam.
+Use the admin live monitor for operational events, not as proof of misconduct.
+Keep a clear incident log for any manual intervention.
+51.3 Post-Exam
+Finalize/lock attempts.
+Verify result counts and score totals.
+Generate final leaderboard.
+Generate CSV/XLSX reports.
+Review integrity events and audit logs.
+Back up final exam data and exports.
+Archive the exam snapshot and versions.
+52. Final Non-Negotiable Architecture
+                         1,000+ STUDENTS
+                                |
+                         Next.js Frontend
+                                |
+                        REST + WebSocket
+                                |
+                      NGINX / LOAD BALANCER
+                                |
+               +----------------+----------------+
+               |                |                |
+           FastAPI #1       FastAPI #2       FastAPI #3
+               |                |                |
+               +----------------+----------------+
+                         |                 |
+                         |                 |
+                      MongoDB           Redis
+                    SOURCE OF TRUTH   PUB/SUB +
+                                      REALTIME STATE
+                         |                 |
+                         +--------+--------+
+                                  |
+                         ADMIN LIVE MONITOR
+
+Coding path:
+Student -> FastAPI -> Queue -> Judge Worker -> Sandbox -> Result -> MongoDB
+MongoDB is mandatory and is the persistent source of truth.
+FastAPI is the backend framework.
+WebSockets are mandatory for live candidate/admin events.
+Redis is used for distributed real-time event propagation, presence/coordination, and other transient coordination needs when multiple backend instances are used.
+Existing frontend should be reused where practical.
+Student and admin response schemas are intentionally different.
+Correct answers and scoring internals never cross the student authorization boundary during the exam.
+Question Bank, Student Management, Exam Assembly, Live Monitor, Question Analytics, Leaderboard, Results, Integrity, and Reports are separate first-class admin capabilities.
+The system is not considered production-ready for 1,000+ concurrency until realistic load tests pass and no critical data-loss or authorization issues remain.
+53. Final Acceptance Matrix
+54. Final Build Directive
+Implement this PRD as the single source of truth for the NextGen Assessment Portal. Preserve working functionality from the supplied repository where it is compatible, migrate persistence to MongoDB as required, build the FastAPI backend and WebSocket layer, and integrate the existing frontend with the new backend contracts. Prioritize exam reliability, data integrity, authorization, recovery, and load-tested concurrency over cosmetic feature expansion.

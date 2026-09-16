@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  # Shared Redis for Socket.IO Redis adapter & BullMQ Queue
+  redis:
+    image: redis:7-alpine
+    container_name: nextgen-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+
+  # Code Execution Worker Service
+  worker:
+    build:
+      context: ./frontend
+      dockerfile: worker.Dockerfile
+    container_name: nextgen-sandbox-worker
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+
+  # Web Application & Socket.IO Persistent Node Server
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nextgen-web-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-key-change-in-production-123456
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=production
+    depends_on:
+      - redis
+
+volumes:
+  redis-data:

@@ -1,0 +1,211 @@
+﻿Total chars: 44756
+lved by default.
+Dedicated Leaderboard page listing rank 1 through the final candidate, with pagination and filters.
+CSV/XLSX export of leaderboard, candidate details, and analytics.
+Integrity events, audit logs, optional proctoring integrations.
+Coding execution through an isolated judge worker system.
+4.2 Out of Scope for MVP
+Full video streaming of every candidate screen/camera feed as a default behavior.
+Automated cheating verdicts from AI; integrity signals are evidence for review.
+Complex psychometric certification claims or high-stakes statistical validation.
+5. High-Level System Architecture
+                         INTERNET / CAMPUS NETWORK
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé   Next.js UI    Γöé
+                         Γöé Student + Admin Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                         REST     Γöé     WebSocket
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé NGINX / LB      Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                     ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                     Γû╝            Γû╝            Γû╝
+                 FastAPI-1    FastAPI-2    FastAPI-N
+                     Γöé            Γöé            Γöé
+                     Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+                     Γöé            Γöé            Γöé
+                     Γû╝            Γû╝            Γû╝
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé MongoDB        Γöé
+                         Γöé Source of truthΓöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γû▓
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé Redis Pub/Sub   Γöé
+                         Γöé live event bus  Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                  Γöé
+                         WebSocket fan-out
+                                  Γöé
+                         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                         Γöé Admin Live UI   Γöé
+                         ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+ Coding submission path:
+ Student -> FastAPI -> Queue -> Judge Worker -> Sandbox/Judge0 -> Result -> MongoDB -> Student/Admin
+5.1 Technology Stack
+5.2 Why MongoDB is Mandatory
+MongoDB is the designated primary database for this product. It will store durable exam state and reporting data. The design should favor atomic single-document updates or carefully bounded transactional operations, with indexes tailored to attempt, answer, event, leaderboard, and analytics queries.
+5.3 Why Redis is Included for the 1,000+ Target
+Redis is not the system of record. Its purpose is distributed coordination: when multiple FastAPI instances are running, an event received by one instance must reach admins connected to another instance. Redis Pub/Sub provides that event bridge. The portal can be developed first with a single FastAPI instance, but the target production topology should include Redis once horizontal scaling is enabled.
+Student -> FastAPI #1 -> MongoDB (persist)
+                     \ -> Redis Pub/Sub (notify)
+                                  |
+                                  v
+                            FastAPI #3
+                                  |
+                                  v
+                         Admin WebSocket
+
+MongoDB = durable source of truth
+Redis     = fast, transient coordination / distribution
+6. User Roles and Permissions
+7. Student Experience Requirements
+7.1 Student Navigation
+STUDENT
+Γö£ΓöÇΓöÇ Dashboard
+Γö£ΓöÇΓöÇ My Exams
+Γö£ΓöÇΓöÇ Instructions / System Check
+ΓööΓöÇΓöÇ Profile
+
+Exam
+Γö£ΓöÇΓöÇ Timer
+Γö£ΓöÇΓöÇ Section selector
+Γö£ΓöÇΓöÇ Question view
+Γö£ΓöÇΓöÇ Question palette
+Γö£ΓöÇΓöÇ Save state
+Γö£ΓöÇΓöÇ Previous / Next
+Γö£ΓöÇΓöÇ Mark for review
+ΓööΓöÇΓöÇ Submit
+7.2 Exam Start Flow
+Authenticate the student.
+Verify exam eligibility and attempt limit.
+Run system checks required by exam policy.
+Create or resume an attempt.
+Bind the attempt to an exam snapshot/version.
+Return only the student-safe exam payload.
+Open the WebSocket and begin heartbeat/connection monitoring.
+7.3 Student Must Not Receive
+Correct answer identifiers.
+is_correct flags.
+Per-option correctness data.
+Current score if the exam policy does not allow live score display.
+Other studentsΓÇÖ names, scores, rank, or activity.
+Hidden test cases or judge internals.
+7.4 Student Answer Response Contract
+POST /api/student/attempts/{attempt_id}/answers
+
+Request:
+{
+  "question_id": "q_123",
+  "answer": {"option_id": "B"}
+}
+
+Response:
+{
+  "saved": true,
+  "question_id": "q_123",
+  "server_time": "..."
+}
+
+No correctness or correct answer is returned.
+7.5 Recovery
+Refresh restores the current attempt and persisted answers.
+WebSocket disconnect shows a non-blocking reconnect state unless the exam policy requires hard blocking.
+Reconnect fetches server state and reconciles any locally queued unsent operations.
+Final submission is idempotent and cannot double-count scores.
+8. Admin Experience Requirements
+ADMIN
+Γö£ΓöÇΓöÇ Dashboard
+Γö£ΓöÇΓöÇ Live Monitor
+Γö£ΓöÇΓöÇ Exams
+Γöé   Γö£ΓöÇΓöÇ All Exams
+Γöé   Γö£ΓöÇΓöÇ Create / Edit
+Γöé   Γö£ΓöÇΓöÇ Scheduled
+Γöé   Γö£ΓöÇΓöÇ Live
+Γöé   ΓööΓöÇΓöÇ Archived
+Γö£ΓöÇΓöÇ Question Bank
+Γö£ΓöÇΓöÇ Analytics
+Γöé   Γö£ΓöÇΓöÇ Exam Analytics
+Γöé   Γö£ΓöÇΓöÇ Question Analytics
+Γöé   ΓööΓöÇΓöÇ Section / Skill Analytics
+Γö£ΓöÇΓöÇ Leaderboard
+Γö£ΓöÇΓöÇ Students
+Γö£ΓöÇΓöÇ Integrity Center
+Γö£ΓöÇΓöÇ Results
+Γö£ΓöÇΓöÇ Reports / Export
+Γö£ΓöÇΓöÇ Announcements
+Γö£ΓöÇΓöÇ Audit Logs
+ΓööΓöÇΓöÇ Settings
+8.1 Admin Landing Dashboard
+EXAM ANALYTICS
+Candidates       1000+
+Started           972
+Completed         918
+In Progress        54
+Connected         947
+Average Score    67.4%
+Average Time    42m 18s
+
+Quick actions:
+[Live Monitor] [Leaderboard] [Question Analytics] [Results] [Export]
+8.2 Student Score List on Admin Home
+The admin must be able to see a candidate list with the student name and current/final score directly from the relevant exam dashboard. A candidate row is clickable/tappable and opens the candidate detail page.
+8.3 Candidate Detail
+Rahul Sharma
+Score: 86 / 100
+Rank: 12
+Accuracy: 81.6%
+Time Taken: 42m 18s
+
+QUESTION BREAKDOWN
+Q1  Γ£ô Correct   +2
+Q2  Γ£ù Wrong      0
+Q3  Γ£ô Correct   +2
+...
+
+For each question:
+- question id/title
+- selected answer
+- correct answer (admin only)
+- status
+- marks obtained
+- time taken
+- coding submission summary where relevant
+9. Exam Management
+9.1 Exam Lifecycle
+DRAFT -> PREVIEW -> SCHEDULED -> LIVE -> PAUSED/RESUMED -> ENDED -> EVALUATION -> RESULTS RELEASED -> ARCHIVED
+9.2 Exam Configuration
+9.3 Exam Snapshot
+When an exam becomes LIVE, the final question selection/configuration must be snapshotted or version-bound. Changes to the reusable question bank must not unexpectedly alter an already-started exam.
+10. Question Bank and Authoring
+10.1 Question Bank
+Reusable questions with stable IDs and version history.
+Tags: subject, topic, subtopic, skill, difficulty, language.
+Status: draft, reviewed, published, archived.
+Rich media support where needed.
+Import/export support for bulk question authoring.
+10.2 Supported Question Types
+10.3 Randomization / Pooling
+Fixed questions may be mixed with random questions.
+Random pool selection can be constrained by category, difficulty, tag, or section.
+Option order can be randomized for MCQs.
+Seeded deterministic randomization must be stored per attempt so recovery produces the same paper.
+11. Real-Time Live Monitoring
+11.1 Purpose
+Live monitoring answers the question: ΓÇ£What is happening right now?ΓÇ¥ It is separate from post-exam analytics and leaderboard reporting.
+11.2 WebSocket Channels
+/ws/student/{attempt_id}
+/ws/admin/{exam_id}
+
+Student socket: exam state + safe acknowledgements
+Admin socket: live candidate events + admin control acknowledgements
+11.3 Event Categories
+11.4 Event Rule
+12. Question Analytics (Dedicated Page)
+Question Analytics is a standalone admin page, not a small widget buried in the dashboard. Its default order is ΓÇ£Highest Solved / Attempted ΓåÆ Least Solved / AttemptedΓÇ¥. This matches the intended operational view: admins 
