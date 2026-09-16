@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { connectDB } from "@nextgen/db";
-import { Test, UserTestAccess } from "@nextgen/db";
+import { Test, Question, UserTestAccess } from "@nextgen/db";
 import { getSessionFromReq } from "../middleware/auth";
 import { armTestTimer } from "../scheduler/scheduler";
 
@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
     }
 
     const body = req.body || {};
-    const { title, scheduledStartTime, durationMinutes, roomId, defaultPassword } = body;
+    const { title, scheduledStartTime, durationMinutes, roomId, defaultPassword, questions } = body;
 
     if (!title || !scheduledStartTime || !roomId) {
       return res.status(400).json({
@@ -88,7 +88,41 @@ router.post("/", async (req, res) => {
       questions: [],
     });
 
-    // Arm timers for start (and any pre-existing user personalEndTime timers)
+    if (Array.isArray(questions) && questions.length > 0) {
+      const questionDocs = await Promise.all(
+        questions.map(async (q: any, index: number) => {
+          const questionData: any = {
+            testId: newTest._id,
+            order: q.order ?? index,
+            type: q.type || "mcq",
+            text: String(q.text || "").trim(),
+          };
+
+          if (q.type === "mcq") {
+            if (!q.options || !Array.isArray(q.options) || q.options.length < 2) {
+              throw new Error("MCQ questions must have at least 2 options");
+            }
+            if (!q.correctOption) {
+              throw new Error("Correct option is required for MCQ questions");
+            }
+            questionData.options = q.options;
+            questionData.correctOption = q.correctOption;
+          } else if (q.type === "coding") {
+            questionData.language = q.language || "javascript";
+            questionData.starterCode = q.starterCode || "";
+            questionData.testCases = Array.isArray(q.testCases) ? q.testCases : [];
+            questionData.timeLimitMs = q.timeLimitMs ? Number(q.timeLimitMs) : 2000;
+            questionData.memoryLimitKb = q.memoryLimitKb ? Number(q.memoryLimitKb) : 262144;
+          }
+
+          return Question.create(questionData);
+        })
+      );
+
+      newTest.questions = questionDocs.map((q: any) => q._id);
+      await newTest.save();
+    }
+
     void armTestTimer(newTest);
 
     return res.status(201).json({ success: true, test: newTest });

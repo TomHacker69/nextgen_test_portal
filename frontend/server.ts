@@ -7,6 +7,13 @@ const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 
+const rawOrigins =
+  process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001";
+const corsOrigins: string[] = rawOrigins
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -28,7 +35,7 @@ async function bootstrap() {
 
     // 4. Initialize Socket.IO with Redis adapter and auth handlers
     console.log("[Bootstrap] Initializing Socket.IO server...");
-    await initSocketServer(server);
+    await initSocketServer(server, { corsOrigin: corsOrigins });
 
     // 5. Start listening
     server.listen(port, () => {

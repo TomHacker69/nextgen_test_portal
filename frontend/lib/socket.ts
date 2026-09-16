@@ -12,7 +12,7 @@ export function getSocket(token?: string): Socket {
     return socket;
   }
 
-  socket = io({
+  socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "", {
     path: "/socket.io",
     autoConnect: true,
     reconnection: true,
