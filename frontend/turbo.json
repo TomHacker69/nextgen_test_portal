@@ -1,9 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "name": "nextgen-test-portal",
-  "pipeline": {
+  "tasks": {
     "dev": {
-      "cache": false
+      "cache": false,
+      "persistent": true
     },
     "build": {
       "dependsOn": ["^build"],
@@ -15,14 +15,5 @@
       "dependsOn": ["build"],
       "cache": false
     }
-  },
-  "tasks": {
-    "dev": {
-      "dependsOn": [],
-      "outputs": []
-    }
-  },
-  "experimental": {
-    "unsafe-fast-parallel": ["dev"]
   }
 }

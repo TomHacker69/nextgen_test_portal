@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +28,7 @@ function LiveMonitorContent({ testId }: { testId: string }) {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const s = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000", {
+    const s = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
       transports: ["websocket"],
       withCredentials: true,
     });

@@ -1,20 +1,17 @@
 {
   "name": "nextgen-test-portal",
+  "packageManager": "npm@11.6.2",
   "private": true,
   "version": "1.0.0",
   "workspaces": [
     "packages/*",
-    "apps/*",
-    "server",
-    "worker"
+    "apps/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "seed": "tsx scripts/seed.ts",
-    "start:worker": "tsx worker/index.ts"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "next lint"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",

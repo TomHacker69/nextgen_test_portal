@@ -1,58 +1,157 @@
-@"tailwind base";
-@"tailwind components";
-@"tailwind utilities";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 45.4% 11.2%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 45.4% 11.2%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98.04%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 45.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 222.2 45.4% 39.4%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 45.4% 11.2%;
-    --destructive: 0 84.3% 60.2%;
-    --destructive-foreground: 210 40% 98.04%;
-    --border: 211.3 35.3% 84.9%;
-    --input: 211.3 35.3% 84.9%;
-    --ring: 262.1 83.3% 57.8%;
-  }
+@variant dark (&:where(.dark, .dark *));
 
-  .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 40% 96.1%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 40% 96.1%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 40% 96.1%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98.04%;
-    --secondary: 222.2 45.4% 11.2%;
-    --secondary-foreground: 222.2 45.4% 11.2%;
-    --muted: 224 71.4% 11.2%;
-    --muted-foreground: 222.2 45.4% 63.1%;
-    --accent: 222.2 45.4% 11.2%;
-    --accent-foreground: 222.2 45.4% 11.2%;
-    --destructive: 0 84.3% 60.2%;
-    --destructive-foreground: 210 40% 98.04%;
-    --border: 224 71.4% 20%;
-    --input: 224 71.4% 20%;
-    --ring: 262.1 83.3% 57.8%;
+:root {
+  color-scheme: light !important;
+  --color-surface: #fbf9f6;
+  --color-surface-dim: #dbdad7;
+  --color-surface-bright: #fbf9f6;
+  --color-surface-card: #f5f2eb;
+  --color-surface-inset: #ece7df;
+  --color-border: #e6e1d8;
+  --color-ink: #161616;
+  --color-text-muted: #6b6966;
+  --color-green: #15803d;
+  --color-green-tint: rgba(21, 128, 61, 0.1);
+
+  --background: #fbf9f6;
+  --foreground: #161616;
+  --card: #f5f2eb;
+  --card-foreground: #161616;
+  --popover: #f5f2eb;
+  --popover-foreground: #161616;
+  --primary: #161616;
+  --primary-foreground: #fbf9f6;
+  --secondary: #ece7df;
+  --secondary-foreground: #161616;
+  --muted: #ece7df;
+  --muted-foreground: #6b6966;
+  --accent: #e6e1d8;
+  --accent-foreground: #161616;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e6e1d8;
+  --input: #ece7df;
+  --ring: #161616;
+}
+
+html, body {
+  background-color: #fbf9f6 !important;
+  color: #161616 !important;
+  color-scheme: light !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root, html, body {
+    color-scheme: light !important;
+    background-color: #fbf9f6 !important;
+    color: #161616 !important;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+.font-editorial {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* ========================================================
+   SERENE HUMANISM: TACTILE SOFT-NEOMORPHIC SURFACES
+   ======================================================== */
+
+/* Raised Pillowed Surface */
+.serene-card {
+  background-color: #f5f2eb;
+  border: 1px solid rgba(230, 225, 216, 0.7);
+  border-radius: 1.25rem;
+  box-shadow: 6px 8px 20px rgba(184, 175, 163, 0.22), -4px -4px 12px rgba(255, 255, 255, 0.9);
+}
+
+.serene-card-sm {
+  background-color: #f5f2eb;
+  border: 1px solid rgba(230, 225, 216, 0.7);
+  border-radius: 0.875rem;
+  box-shadow: 4px 6px 14px rgba(184, 175, 163, 0.18), -3px -3px 8px rgba(255, 255, 255, 0.9);
+}
+
+/* Recessed Inset Well */
+.serene-inset {
+  background-color: #ece7df;
+  border: 1px solid rgba(230, 225, 216, 0.6);
+  border-radius: 0.875rem;
+  box-shadow: inset 3px 3px 8px rgba(184, 175, 163, 0.24), inset -3px -3px 8px rgba(255, 255, 255, 0.8);
+}
+
+.serene-inset-pill {
+  background-color: #ece7df;
+  border: 1px solid rgba(230, 225, 216, 0.6);
+  border-radius: 9999px;
+  box-shadow: inset 2px 2px 6px rgba(184, 175, 163, 0.22), inset -2px -2px 6px rgba(255, 255, 255, 0.8);
+}
+
+/* Primary Carbon Button */
+.serene-btn-primary {
+  background-color: #161616;
+  color: #fbf9f6;
+  border-radius: 0.875rem;
+  box-shadow: 0 6px 14px rgba(22, 22, 22, 0.14), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.serene-btn-primary:hover {
+  background-color: #000000;
+  box-shadow: 0 8px 18px rgba(22, 22, 22, 0.2);
+  transform: translateY(-1px);
+}
+
+.serene-btn-primary:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  transform: translateY(1px);
+}
+
+/* Secondary Pillowed Button */
+.serene-btn-secondary {
+  background-color: #f5f2eb;
+  color: #161616;
+  border: 1px solid rgba(230, 225, 216, 0.8);
+  border-radius: 0.875rem;
+  box-shadow: 4px 6px 14px rgba(184, 175, 163, 0.2), -3px -3px 10px rgba(255, 255, 255, 0.9);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.serene-btn-secondary:hover {
+  background-color: #fbf9f6;
+  box-shadow: 5px 8px 16px rgba(184, 175, 163, 0.25), -4px -4px 12px rgba(255, 255, 255, 1);
+}
+
+.serene-circle {
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 3px 3px 8px rgba(184, 175, 163, 0.25), -3px -3px 8px rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(230, 225, 216, 0.6);
+  background: #f5f2eb;
+  transition: all 0.2s;
+}
+
+.serene-circle:hover {
+  box-shadow: 4px 4px 10px rgba(184, 175, 163, 0.3), -4px -4px 10px rgba(255, 255, 255, 1);
 }

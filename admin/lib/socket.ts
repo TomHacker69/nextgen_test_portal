@@ -4,11 +4,11 @@ import {
   ServerToClientEvents,
 } from "@nextgen/shared-types";
 
-let socket: Socket<ClientToServerEvents, ServerToClientEvents> | null = null;
+let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
-export function getSocket(): Socket<ClientToServerEvents, ServerToClientEvents> {
+export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000", {
+    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
       transports: ["websocket"],
       withCredentials: true,
       auth: {

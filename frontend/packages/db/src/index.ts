@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 
-export { default as Admin, IAdminDoc } from "./models/Admin";
-export { default as Test, ITestDoc } from "./models/Test";
-export { default as Question, IQuestionDoc } from "./models/Question";
-export { default as User, IUserDoc } from "./models/User";
-export { default as ResponseModel, IResponseDoc } from "./models/Response";
-export { default as UserTestAccess, IUserTestAccessDoc } from "./models/UserTestAccess";
-export { default as CodeSnapshot, ICodeSnapshotDoc } from "./models/CodeSnapshot";
+export { default as Admin, type IAdminDoc } from "./models/Admin";
+export { default as Test, type ITestDoc } from "./models/Test";
+export { default as Question, type IQuestionDoc } from "./models/Question";
+export { default as User, type IUserDoc } from "./models/User";
+export { default as ResponseModel, type IResponseDoc } from "./models/Response";
+export { default as UserTestAccess, type IUserTestAccessDoc } from "./models/UserTestAccess";
+export { default as CodeSnapshot, type ICodeSnapshotDoc } from "./models/CodeSnapshot";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/nextgen_test_portal";

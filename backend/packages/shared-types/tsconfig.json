@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nextgen/shared-types": ["./src"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}
