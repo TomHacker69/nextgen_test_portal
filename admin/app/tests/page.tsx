@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import AdminLayout from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -46,7 +48,7 @@ function TestsContent() {
     setLoading(true);
     try {
       const res = await api.get("/admin/tests");
-      setTests(res.data);
+      setTests(res.data?.tests ?? res.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -127,6 +129,7 @@ function TestForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
   const [title, setTitle] = useState("");
   const [scheduledStartTime, setScheduledStartTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [defaultPassword, setDefaultPassword] = useState("");
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
 
@@ -152,6 +155,7 @@ function TestForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
       title,
       scheduledStartTime: new Date(scheduledStartTime).toISOString(),
       durationMinutes: parseInt(durationMinutes, 10),
+      roomId,
       defaultPassword: defaultPassword || undefined,
       questions: questions.map((q) => ({
         order: q.order,
@@ -200,6 +204,14 @@ function TestForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
             type="number"
             value={durationMinutes}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDurationMinutes(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Room ID</Label>
+          <Input
+            value={roomId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRoomId(e.target.value)}
+            placeholder="Unique room identifier"
           />
         </div>
         <div className="space-y-2">

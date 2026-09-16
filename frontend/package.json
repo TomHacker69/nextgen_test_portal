@@ -4,17 +4,22 @@
   "version": "1.0.0",
   "workspaces": [
     "packages/*",
-    "apps/*",
     "server",
     "worker"
   ],
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
+"scripts": {
+    "dev": "tsx server.ts",
+    "dev:api": "tsx server/src/index.ts",
+    "dev:worker": "tsx worker/index.ts",
+    "build": "next build",
+    "build:workspaces": "turbo run build",
+    "lint": "eslint .",
+    "lint:workspaces": "turbo run lint",
+    "typecheck": "tsc --noEmit",
+    "typecheck:workspaces": "turbo run typecheck",
     "seed": "tsx scripts/seed.ts",
-    "start:worker": "tsx worker/index.ts"
+    "start:worker": "tsx worker/index.ts",
+    "start": "NODE_ENV=production tsx server.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",

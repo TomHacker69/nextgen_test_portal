@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import api from "@/lib/api";
 import { disconnectSocket } from "@/lib/socket";
@@ -42,7 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function checkSession() {
     try {
       const res = await api.get("/auth/me");
-      setSession(res.data as AdminSession);
+      const session = res.data?.authenticated
+        ? (res.data.user as AdminSession)
+        : null;
+      setSession(session);
     } catch {
       setSession(null);
     } finally {

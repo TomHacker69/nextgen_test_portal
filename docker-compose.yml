@@ -47,5 +47,25 @@ services:
     depends_on:
       - redis
 
+  # Express API Server for Admin Panel
+  api:
+    build:
+      context: ./frontend
+      dockerfile: server/Dockerfile
+    container_name: nextgen-api-server
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-key-change-in-production-123456
+      - PORT=4000
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=production
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+    depends_on:
+      - redis
+
 volumes:
   redis-data:

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { AuthProviderWrapper } from "./auth-provider-wrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           "h-full bg-background text-foreground antialiased"
         )}
       >
-        {children}
+        <AuthProviderWrapper>{children}</AuthProviderWrapper>
       </body>
     </html>
   );

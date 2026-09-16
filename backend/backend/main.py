@@ -58,31 +58,3 @@ app.include_router(admin_ws.router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
-
-
-@app.get("/api/admin/seed")
-async def seed_admin():
-    """
-    One-time seed: creates the default admin account if none exists.
-    Remove this endpoint in production!
-    """
-    from app.core.database import get_db
-    from app.core.security import hash_password
-    from datetime import datetime
-
-    db = get_db()
-    existing = await db.users.find_one({"role": "admin"})
-    if existing:
-        return {"message": "Admin already exists", "email": existing.get("email")}
-
-    doc = {
-        "name": "Portal Admin",
-        "email": "admin@nextgen.local",
-        "roll_number": None,
-        "password_hash": hash_password("Admin@1234"),
-        "role": "admin",
-        "is_active": True,
-        "created_at": datetime.utcnow(),
-    }
-    result = await db.users.insert_one(doc)
-    return {"message": "Admin created", "email": "admin@nextgen.local", "password": "Admin@1234"}

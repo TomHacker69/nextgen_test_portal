@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +27,7 @@ function StatsContent() {
   useEffect(() => {
     api
       .get("/admin/tests")
-      .then((res) => setTests(res.data as ITest[]))
+       .then((res) => setTests(res.data?.tests ?? res.data))
       .catch((_e: unknown) => {
         console.error(_e);
       });
@@ -113,7 +115,7 @@ function StatsContent() {
                 <tbody>
                   {testStats.participants?.map((p: any) => (
                     <tr key={p.userId}>
-                      <td className="p-2 border-b">{p.userName}</td>
+                      <td className="p-2 border-b">{p.name || p.userName}</td>
                       <td className="p-2 border-b">
                         {p.currentQuestionIndex}/{p.totalQuestions}
                       </td>

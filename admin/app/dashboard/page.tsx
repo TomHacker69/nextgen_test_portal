@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,9 +25,9 @@ function DashboardContent() {
   useEffect(() => {
     api
       .get("/admin/tests")
-      .then((res) => {
-        setTests(res.data as ITest[]);
-      })
+       .then((res) => {
+         setTests((res.data?.tests ?? res.data) as ITest[]);
+       })
       .catch((err) => setError(err?.message || "Failed to load tests"))
       .finally(() => setLoading(false));
   }, []);

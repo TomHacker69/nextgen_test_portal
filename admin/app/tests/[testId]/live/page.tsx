@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
