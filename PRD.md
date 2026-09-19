@@ -6,19 +6,21 @@
 The NextGen Test Portal is an assessment platform enabling administrators to create tests with multiple-choice questions, schedule them, and monitor live results. Students take tests in real-time with proctoring features.
 
 ### 1.2 Architecture Summary
-This is a **dual-backend architecture**:
-- **Primary Stack**: Express.js backend (`frontend/server/`) + Next.js frontend (`frontend/app/`) — used by both user and admin apps
-- **Standalone Stack**: FastAPI backend (`backend/backend/`) — separate Python microservice
+The project consists of three main services orchestrated via Docker Compose:
+- **Node.js Backend** (`backend/`) — Express.js + Socket.IO server with Mongoose/MongoDB, BullMQ worker
+- **Admin Frontend** (`admin/`) — React admin dashboard (Next.js 16)
+- **Candidate Frontend** (`frontend/`) — Student-facing app (Next.js 16) that proxies API calls to the backend
+
+> **Note**: This PRD was originally written when the Express backend lived in `frontend/server/` alongside the Next.js app. After the merge of the `Raj` branch, the backend was extracted to a standalone `backend/` directory. The Express backend, worker, and database models now reside there. The frontend is now a pure Next.js application.
 
 ### 1.3 Components
 | Component | Location | Port | Description |
 |-----------|----------|------|-------------|
-| User Frontend | `frontend/` | 3000 | Next.js app with custom Socket.IO server |
-| Admin Frontend | `admin/` | 3001 | Standalone Next.js 16 app |
-| Express API | `frontend/server/` | 4000 | Node.js/Express backend (Mongoose/MongoDB) |
-| FastAPI | `backend/backend/` | 8000 | Python/FastAPI backend (Motor/MongoDB) |
-| Redis | root compose | 6379 | Queue and session storage |
-| Worker | `frontend/server/` | — | Background job processor |
+| Candidate Frontend | `frontend/` | 3000 | Next.js student app (pure frontend, API proxy to backend) |
+| Admin Frontend | `admin/` | 3001 | React admin dashboard (Next.js 16) |
+| Node.js Backend | `backend/` | 8000 | Express.js + Socket.IO + BullMQ worker (Mongoose/MongoDB) |
+| MongoDB | root compose | 27017 | Primary database |
+| Redis | root compose | 6379 | Queue, session storage, Socket.IO adapter |
 
 ---
 

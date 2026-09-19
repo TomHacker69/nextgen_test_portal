@@ -44,10 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function checkSession() {
     try {
       const res = await api.get("/auth/me");
-      const session = res.data?.authenticated
-        ? (res.data.user as AdminSession)
-        : null;
-      setSession(session);
+      const user = res.data?.user || res.data;
+      if (user && user.userId) {
+        setSession(user as AdminSession);
+      } else {
+        setSession(null);
+      }
     } catch {
       setSession(null);
     } finally {

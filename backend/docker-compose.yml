@@ -1,9 +1,8 @@
-version: '3.8'
-
+name: nextgen_backend
 services:
   mongodb:
     image: mongo:7.0
-    container_name: nextgen_mongodb
+    container_name: nextgen_backend_mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -13,8 +12,8 @@ services:
       - MONGO_INITDB_DATABASE=nextgen_test_portal
 
   redis:
-    image: redis:7.2-alpine
-    container_name: nextgen_redis
+    image: redis:7-alpine
+    container_name: nextgen_backend_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -23,24 +22,24 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: nextgen_backend
+    container_name: nextgen_backend_standalone
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URL=mongodb://mongodb:27017
-      - MONGO_DB_NAME=nextgen_test_portal
-      - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET_KEY=dev-secret-key-change-in-production-1234567890
-      - JWT_ALGORITHM=HS256
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
+      - PORT=8000
+      - HOSTNAME=0.0.0.0
+      - MONGODB_URI=mongodb://mongodb:27017/nextgen_test_portal
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-key-change-in-production-123456
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
+      - NODE_ENV=development
     depends_on:
       - mongodb
       - redis
 
-  volumes:
+volumes:
   mongo_data:
   redis_data:

@@ -1,7 +1,21 @@
-version: "3.8"
+name: nextgen_test_portal
 
 services:
-  # Shared Redis for Socket.IO Redis adapter & BullMQ Queue
+  # 1. MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: nextgen-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=nextgen_test_portal
+    networks:
+      - nextgen-network
+
+  # 2. Redis Cache & Telemetry Broker
   redis:
     image: redis:7-alpine
     container_name: nextgen-redis
@@ -11,66 +25,79 @@ services:
     volumes:
       - redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - nextgen-network
 
-  # Code Execution Worker Service
-  worker:
+  # 3. Node.js Express & Socket.IO Backend Service
+  backend:
     build:
-      context: ./frontend
-      dockerfile: worker.Dockerfile
-    container_name: nextgen-sandbox-worker
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nextgen-backend
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     environment:
-      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
+      - PORT=8000
+      - HOSTNAME=0.0.0.0
+      - MONGODB_URI=mongodb://mongodb:27017/nextgen_test_portal
       - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-key-change-in-production-123456
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
       - NODE_ENV=production
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
+      - mongodb
       - redis
+    networks:
+      - nextgen-network
 
-  # Web Application & Socket.IO Persistent Node Server
-  web:
+  # 4. Admin Dashboard (Next.js)
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: nextgen-admin
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - nextgen-network
+
+  # 5. Candidate Assessment Portal (Next.js)
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: nextgen-web-server
+    container_name: nextgen-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=super-secret-key-change-in-production-123456
       - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - NODE_ENV=production
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-      - NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
-      - NEXT_PUBLIC_API_URL=http://localhost:4000/api
-    depends_on:
-      - redis
-
-  # Express API Server for Admin Panel
-  api:
-    build:
-      context: ./frontend
-      dockerfile: server/Dockerfile
-    container_name: nextgen-api-server
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    environment:
-      - MONGODB_URI=mongodb://host.docker.internal:27017/nextgen_test_portal
+      - MONGODB_URI=mongodb://mongodb:27017/nextgen_test_portal
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=super-secret-key-change-in-production-123456
-      - PORT=4000
-      - HOSTNAME=0.0.0.0
-      - NODE_ENV=production
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
     depends_on:
+      - mongodb
       - redis
+      - backend
+    networks:
+      - nextgen-network
+
+networks:
+  nextgen-network:
+    driver: bridge
 
 volumes:
+  mongo-data:
   redis-data:
 
 

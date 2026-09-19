@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { AuthProviderWrapper } from "./auth-provider-wrapper";
+import { AuthProvider } from "@/lib/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,14 +13,14 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full light" style={{ colorScheme: "light" }}>
       <body
         className={cn(
           inter.className,
-          "h-full bg-background text-foreground antialiased"
+          "h-full bg-[#fbf9f6] text-[#161616] antialiased"
         )}
       >
-        <AuthProviderWrapper>{children}</AuthProviderWrapper>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

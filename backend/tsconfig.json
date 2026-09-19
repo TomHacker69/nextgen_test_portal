@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "types": ["node"],
+    "outDir": "./dist",
+    "paths": {
+      "@nextgen/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@nextgen/db": ["./packages/db/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "scripts/**/*", "packages/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

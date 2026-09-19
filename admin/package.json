@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nextgen/shared-types": "file:../frontend/packages/shared-types",
+    "@nextgen/shared-types": "file:./packages/shared-types",
     "@tanstack/react-virtual": "^3.14.13",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",

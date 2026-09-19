@@ -1,0 +1,27 @@
+{
+  "name": "@nextgen/worker",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "dev": "tsx index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "tsx index.ts",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "@nextgen/db": "file:../packages/db",
+    "@nextgen/shared-types": "file:../packages/shared-types",
+    "bullmq": "^6.3.6",
+    "dockerode": "^5.0.1",
+    "ioredis": "^6.0.0",
+    "mongoose": "^9.10.1"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^4.0.1",
+    "@types/node": "^20",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}

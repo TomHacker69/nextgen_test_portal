@@ -1,107 +1,128 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Activity, Users, Zap, Database } from "lucide-react";
+import { ArrowRight, Activity, Users, Zap, Database } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col justify-between">
-      {/* Navbar */}
-      <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#fbf9f6] text-[#161616] py-8 px-6 sm:px-12 lg:px-20 flex flex-col justify-between">
+      {/* Editorial Navbar */}
+      <header className="max-w-5xl mx-auto w-full mb-12">
+        <div className="serene-card px-7 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="serene-circle text-[#161616] w-10 h-10">
+              <Zap className="w-4 h-4 text-[#15803d] fill-[#15803d]" />
             </div>
-            <div>
-              <span className="font-bold text-lg text-white tracking-tight">NextGen</span>
-              <span className="text-cyan-400 font-semibold text-lg ml-1">Portal</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-editorial font-normal text-xl text-[#161616] tracking-tight">NextGen</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#6b6966]">Portal</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <Link
-              href="/login"
-              className="px-5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition shadow-md shadow-cyan-500/25 flex items-center gap-2"
+              href="/dashboard"
+              className="serene-btn-primary px-6 py-2.5 text-xs font-semibold tracking-wide flex items-center gap-2"
             >
-              Portal Login
-              <ArrowRight className="w-4 h-4" />
+              Candidate Portal
+              <ArrowRight className="w-3.5 h-3.5 text-[#fbf9f6]" />
             </Link>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-16 flex flex-col items-center text-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-medium mb-8">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-          Engineered for 500+ Concurrent Test-Takers
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight max-w-4xl">
+      <main className="flex-1 max-w-4xl mx-auto w-full py-10 flex flex-col items-center text-center justify-center">
+        {/* Editorial Headline in Solid Deep Carbon Black */}
+        <h1 className="font-editorial text-4xl sm:text-6xl font-normal text-[#161616] tracking-tight leading-[1.18] max-w-3xl">
           Real-Time Distributed <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400">
-            MCQ Assessment Engine
+          <span className="text-[#161616]">
+            Examination & Coding Engine
           </span>
         </h1>
 
-        <p className="mt-6 text-lg text-slate-400 max-w-2xl leading-relaxed">
-          High-performance online test hosting powered by persistent WebSockets, Redis pub/sub clustering, atomic MongoDB response upserts, and a real-time virtualized admin monitoring matrix.
+        {/* Humanist Body Prose */}
+        <p className="mt-6 text-base sm:text-lg text-[#6b6966] max-w-2xl leading-relaxed font-normal">
+          High-performance online test hosting powered by persistent WebSockets, multi-language compiler sandboxing, atomic MongoDB response upserts, and real-time candidate telemetry.
         </p>
 
-        {/* Quick Access CTA Buttons */}
+        {/* Primary Call To Action */}
         <div className="mt-10 flex flex-wrap gap-4 justify-center">
           <Link
-            href="/login"
-            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-bold text-base transition shadow-xl shadow-cyan-500/25 flex items-center gap-2"
+            href="/dashboard"
+            className="serene-btn-primary px-8 py-3.5 text-sm font-semibold tracking-wide flex items-center gap-2.5 shadow-md"
           >
-            Access Portal
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-          <Link
-            href="/admin"
-            className="px-8 py-3.5 rounded-xl border border-slate-700 bg-slate-900/60 hover:bg-slate-800/80 text-slate-200 font-medium text-base transition flex items-center gap-2"
-          >
-            <ShieldCheck className="w-5 h-5 text-cyan-400" />
-            Admin Dashboard
+            Access Assessments Dashboard
+            <ArrowRight className="w-4 h-4 text-[#fbf9f6]" />
           </Link>
         </div>
 
-        {/* Feature Grid */}
+        {/* Feature Grid: Milled Alabaster Tactile Surfaces */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4">
-              <Activity className="w-6 h-6" />
+          {/* Card 1 */}
+          <div className="serene-card p-7 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="serene-circle text-[#161616] mb-5 w-11 h-11">
+                <Activity className="w-5 h-5 text-[#15803d]" />
+              </div>
+              <h2 className="font-editorial text-lg font-normal text-[#161616] mb-2.5">
+                Sub-Second Real-Time Updates
+              </h2>
+              <p className="text-[#6b6966] text-sm leading-relaxed font-normal">
+                Every MCQ selection streams instantly over WebSockets to the supervisor dashboard without page refreshes or polling lag.
+              </p>
             </div>
-            <h2 className="text-white font-semibold text-lg mb-2">Sub-Second Real-Time Updates</h2>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Every MCQ selection streams instantly over Socket.IO to the supervisor dashboard without page refreshes or polling lag.
-            </p>
+            <div className="mt-6 pt-4 border-t border-[#e6e1d8]/70 flex items-center gap-1.5 text-xs text-[#15803d] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#15803d]" />
+              Continuous Socket Stream
+            </div>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
-              <Users className="w-6 h-6" />
+          {/* Card 2 */}
+          <div className="serene-card p-7 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="serene-circle text-[#161616] mb-5 w-11 h-11">
+                <Users className="w-5 h-5 text-[#15803d]" />
+              </div>
+              <h2 className="font-editorial text-lg font-normal text-[#161616] mb-2.5">
+                500+ Virtualized DOM Matrix
+              </h2>
+              <p className="text-[#6b6966] text-sm leading-relaxed font-normal">
+                Equipped with windowed DOM virtualization so supervisors can monitor 500+ concurrent students without browser stutter.
+              </p>
             </div>
-            <h2 className="text-white font-semibold text-lg mb-2">500+ Virtualized DOM Matrix</h2>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Equipped with windowed DOM virtualization so supervisors can monitor 500+ concurrent students without browser stutter.
-            </p>
+            <div className="mt-6 pt-4 border-t border-[#e6e1d8]/70 flex items-center gap-1.5 text-xs text-[#15803d] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#15803d]" />
+              Zero Browser Stutter
+            </div>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
-              <Database className="w-6 h-6" />
+          {/* Card 3 */}
+          <div className="serene-card p-7 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="serene-circle text-[#161616] mb-5 w-11 h-11">
+                <Database className="w-5 h-5 text-[#15803d]" />
+              </div>
+              <h2 className="font-editorial text-lg font-normal text-[#161616] mb-2.5">
+                Redis Pub/Sub Scaling
+              </h2>
+              <p className="text-[#6b6966] text-sm leading-relaxed font-normal">
+                Integrated Redis pub/sub broker enables stateless horizontal node scaling behind load balancers with room isolation.
+              </p>
             </div>
-            <h2 className="text-white font-semibold text-lg mb-2">Redis Pub/Sub Scaling</h2>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Integrated Socket.IO Redis adapter enables stateless horizontal node scaling behind load balancers with room isolation.
-            </p>
+            <div className="mt-6 pt-4 border-t border-[#e6e1d8]/70 flex items-center gap-1.5 text-xs text-[#15803d] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#15803d]" />
+              Clustered Fault Tolerance
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
-        NextGen Test Portal • High-Concurrency Assessment Engine
+      {/* Editorial Footer */}
+      <footer className="max-w-5xl mx-auto w-full mt-16 py-6 border-t border-[#e6e1d8]/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6b6966]">
+        <p className="font-normal">NextGen Test Portal • High-Concurrency Assessment Engine</p>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#15803d]" />
+          <span className="text-[#15803d] font-semibold">Cluster Operational</span>
+        </div>
       </footer>
     </div>
   );
